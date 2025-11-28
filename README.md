@@ -4,16 +4,10 @@
 - Node.js 18+
 - MongoDB đang chạy (local hoặc Atlas)
 
-## Cài đặt & chạy
-```bash
-npm install
-cp .env.example .env
-# Sửa .env nếu cần
-npm run dev   # chạy kèm nodemon
-# Hoặc:
-npm start
-```
-Mở trình duyệt: http://localhost:3000
+Mở trình duyệt: 
+
+[https://chat-socket-g8.vercel.app/login.html](https://chat-socket-g8.vercel.app/)
+
 
 ## Tính năng đã triển khai
 - Đặt tên người dùng khi vào

@@ -1,4 +1,7 @@
-const socket = io(https://chat-socket-g8.onrender.com);
+const API_BASE = "https://chat-socket-g8.onrender.com";
+const socket = io(API_BASE, {
+  transports: ["websocket", "polling"]
+});
 
 // --- 1. KIỂM TRA ĐĂNG NHẬP ---
 const storedName = localStorage.getItem('chat_username');
@@ -252,7 +255,7 @@ async function loadRoomHistory(room) {
   if (!messages) return;
   messages.innerHTML = '';
   try {
-    const res = await fetch(`/api/rooms/${encodeURIComponent(room)}/messages?limit=50`);
+    const res = await fetch(`${API_BASE}/api/rooms/${encodeURIComponent(room)}/messages?limit=50`);
     const data = await res.json();
     if (Array.isArray(data)) data.forEach(m => appendMessage(m));
   } catch (e) {
@@ -344,7 +347,7 @@ if (fileUploadBtn && fileInput) {
     formData.append('room', currentRoom);
     formData.append('username', username);
     try {
-      const res = await fetch('/upload-file', { method: 'POST', body: formData });
+      const res = await fetch(`${API_BASE}/upload-file`, { method: 'POST', body: formData });
       const data = await res.json();
       if (!data.ok) alert('Lỗi upload: ' + (data.message || 'Thất bại'));
       fileInput.value = '';
@@ -440,7 +443,7 @@ if (avatarCircle && avatarMenu) {
   }
 }
 
-// --- 🔊 10. VOICE MESSAGE (Tin nhắn thoại) ---
+// ---  10. VOICE MESSAGE (Tin nhắn thoại) ---
 let mediaRecorder = null;
 let voiceChunks = [];
 const btnRecordVoice = document.getElementById('btnRecordVoice');
@@ -457,7 +460,7 @@ async function uploadVoiceBlob(blob) {
   formData.append('username', username);
 
   try {
-    const res = await fetch('/upload-file', {
+    const res = await fetch(`${API_BASE}/upload-file`, {
       method: 'POST',
       body: formData
     });

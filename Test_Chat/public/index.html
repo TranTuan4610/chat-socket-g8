@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Socket Chat Messenger</title>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600&display=swap" rel="stylesheet">
+  <link href="https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <!-- Popup Call -->
+  <div id="callOverlay" class="call-overlay">
+    <div class="call-box">
+      <div class="call-avatar" id="callAvatar"></div>
+      <div class="call-name" id="callName">Đang gọi...</div>
+      <div class="call-type" id="callType">Voice call</div>
+
+      <!-- Media cho video call -->
+      <div id="callMediaWrapper" style="display:none; margin-top:10px; position:relative;">
+        <video id="remoteVideo" autoplay playsinline style="width:100%; border-radius:12px; background:#000;"></video>
+        <video id="localVideo" autoplay playsinline muted
+               style="width:90px; height:90px; border-radius:12px; position:absolute; bottom:10px; right:10px; object-fit:cover; background:#000;"></video>
+      </div>
+
+      <div class="call-actions-row">
+        <!-- Nút nhận cuộc gọi -->
+        <button id="btnAcceptCall" class="btn-accept-call" title="Đồng ý">
+          <i class='bx bx-phone'></i>
+        </button>
+
+        <!-- Nút từ chối / kết thúc -->
+        <button id="btnRejectCall" class="btn-end-call" title="Từ chối / Kết thúc">
+          <i class='bx bx-phone-off'></i>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <div class="app-container">
+    <aside class="sidebar">
+      <div class="sidebar-header">
+        <i class='bx bxs-message-rounded-dots logo-icon'></i>
+        <h2>Chat App</h2>
+      </div>
+
+      <div class="user-profile">
+        <div class="avatar-circle"><i class='bx bxs-user'></i></div>
+        <div id="me" class="user-name">Đang tải...</div>
+        <button id="btnLogout" title="Đăng xuất"><i class='bx bx-log-out'></i></button>
+      </div>
+
+      <!-- Menu chỉnh avatar -->
+      <div id="avatarMenu" class="avatar-menu">
+        <button id="avatarMenuChoose">Chọn ảnh avatar</button>
+        <button id="avatarMenuClear">Xóa avatar hiện tại</button>
+        <input type="file" id="avatarMenuInput" accept="image/*" style="display:none">
+      </div>
+
+      <div class="sidebar-content">
+        <section>
+          <h3><i class='bx bx-hash'></i> Phòng chat</h3>
+          <div class="rooms-list" id="rooms"></div>
+
+          <div class="room-create-box">
+            <input id="roomName" placeholder="Tạo phòng..." />
+            <button id="btnCreateRoom"><i class='bx bx-plus'></i></button>
+          </div>
+        </section>
+
+        <section class="online-section">
+          <h3><i class='bx bx-group'></i> Đang Online</h3>
+          <ul id="usersOnline" class="users-list"></ul>
+        </section>
+      </div>
+    </aside>
+
+    <main class="chat-area">
+      <header class="chat-header">
+        <div class="chat-info">
+          <div class="chat-icon"><i class='bx bxs-chat'></i></div>
+          <div>
+            <h2 id="target">Room: general</h2>
+            <div class="status-text">
+              <span class="status-dot"></span> Đang hoạt động
+            </div>
+          </div>
+        </div>
+
+        <div class="call-actions">
+          <button id="toggleMode" class="btn-toggle-theme" title="Chế độ sáng/tối">
+            <i class='bx bx-moon'></i>
+          </button>
+
+          <button id="btnCallVoice" class="btn-icon-circle" title="Gọi thoại">
+            <i class='bx bx-phone'></i>
+          </button>
+          <button id="btnCallVideo" class="btn-icon-circle" title="Gọi video">
+            <i class='bx bx-video'></i>
+          </button>
+        </div>
+
+        <button id="toGeneral" class="btn-secondary">
+          <i class='bx bx-home'></i> Sảnh chung
+        </button>
+      </header>
+
+      <ul id="messages" class="messages-box"></ul>
+
+      <div class="chat-input-area">
+        <div id="typingStatus"></div>
+
+        <form id="form" class="input-form">
+          <button type="button" id="fileUploadBtn" class="btn-icon" title="Gửi ảnh/file">
+            <i class='bx bx-paperclip'></i>
+          </button>
+          <input type="file" id="fileInput" style="display:none">
+
+          <button type="button" id="btnRecordVoice" class="btn-icon" title="Gửi tin nhắn thoại">
+            <i class='bx bx-microphone'></i>
+          </button>
+
+          <input id="input" autocomplete="off" placeholder="Nhập tin nhắn..." />
+
+          <button type="submit" class="btn-send">
+            <i class='bx bxs-send'></i>
+          </button>
+        </form>
+      </div>
+    </main>
+  </div>
+
+  <!-- (Tuỳ chọn) Firebase Auth, nếu bạn dùng -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-app.js";
+    import { getAuth, signOut } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-auth.js";
+
+    const firebaseConfig = {  
+      apiKey: "AIzaSyDRMgkgMUxdDn0LLduG0_kZ4AdvmM3ZVg4",
+      authDomain: "login-43c99.firebaseapp.com",
+      projectId: "login-43c99",
+      storageBucket: "login-43c99.firebasestorage.app",
+      messagingSenderId: "559138671436",
+      appId: "1:559138671436:web:32388b3a289887bd641de9",
+      measurementId: "G-KFY7VSR74L"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+
+    const btnLogout = document.getElementById('btnLogout');
+    if (btnLogout) {
+      btnLogout.addEventListener('click', () => {
+        // Đăng xuất Firebase (nếu có login bằng Firebase)
+        signOut(auth).catch(console.error);
+      });
+    }
+  </script>
+
+  <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+  <script src="client.js"></script>
+</body>
+</html>

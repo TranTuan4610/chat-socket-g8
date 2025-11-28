@@ -1,4 +1,4 @@
-const socket = io();
+const socket = io(https://chat-socket-g8.onrender.com);
 
 // --- 1. KIỂM TRA ĐĂNG NHẬP ---
 const storedName = localStorage.getItem('chat_username');

@@ -3,12 +3,6 @@ const socket = io(API_BASE, {
   transports: ["websocket", "polling"]
 });
 
-const ICE_SERVERS = [
-  { urls: 'stun:stun.l.google.com:19302' },
-  { urls: 'turn:YOUR_TURN_HOST:3478', username: 'USER', credential: 'PASS' }
-];
-
-pc = new RTCPeerConnection({ iceServers: ICE_SERVERS });
 
 
 // --- 1. KIỂM TRA ĐĂNG NHẬP ---
@@ -32,6 +26,12 @@ let localStream = null;
 let currentCallPeer = null;
 let currentCallIsVideo = false;
 let remoteAudioEl = null;
+const ICE_SERVERS = [
+  { urls: 'stun:stun.l.google.com:19302' },
+  { urls: 'turn:YOUR_TURN_HOST:3478', username: 'USER', credential: 'PASS' }
+];
+
+pc = new RTCPeerConnection({ iceServers: ICE_SERVERS });
 
 // trạng thái cuộc gọi: 'idle' | 'outgoing' | 'ringing' | 'in-call'
 let currentCallStatus = 'idle';

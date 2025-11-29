@@ -826,12 +826,20 @@ function leaveGroupCall() {
 
 // Chỉ còn 1 hàm startDirectCall duy nhất
 async function startDirectCall(isVideo) {
+
+  currentCallPeer = dmTarget;
+  currentCallIsVideo = !!isVideo;
+  currentCallStatus = 'outgoing';
+
+  try {
+    const constraints = { audio: true, video: !!isVideo };
+    localStream = await navigator.mediaDevices.getUserMedia(constraints);
+
+    async function startDirectCall(isVideo) {
   if (!dmTarget) {
-    alert('Bạn cần chọn 1 người trong danh sách Online để gọi riêng.');
+    alert('Hãy chọn 1 người (DM) rồi mới gọi 1-1.');
     return;
   }
-
-  // Nếu đang ở cuộc gọi phòng thì hỏi rời phòng trước
   if (groupCallActive) {
     const ok = confirm('Bạn đang ở cuộc gọi phòng, rời cuộc gọi phòng trước khi gọi 1-1?');
     if (!ok) return;
@@ -842,13 +850,12 @@ async function startDirectCall(isVideo) {
     alert('Bạn đang trong một cuộc gọi khác.');
     return;
   }
-
   if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
     alert('Trình duyệt không hỗ trợ WebRTC / getUserMedia.');
     return;
   }
 
-  // NEW: nếu đang ghi âm voice thì dừng lại để giải phóng micro
+  // >>> NEW: nếu đang ghi âm voice thì dừng lại để giải phóng micro
   if (typeof mediaRecorder !== 'undefined' &&
       mediaRecorder &&
       mediaRecorder.state === 'recording') {
@@ -866,6 +873,40 @@ async function startDirectCall(isVideo) {
   try {
     const constraints = { audio: true, video: !!isVideo };
     localStream = await navigator.mediaDevices.getUserMedia(constraints);
+
+    createPeerConnection();
+    localStream.getTracks().forEach(track => pc.addTrack(track, localStream));
+
+    if (currentCallIsVideo && localVideoEl) {
+      localVideoEl.srcObject = localStream;
+    }
+
+    openCallOverlay(currentCallPeer, currentCallIsVideo, 'outgoing');
+
+    const offer = await pc.createOffer();
+    await pc.setLocalDescription(offer);
+
+    socket.emit('call_user', {
+      to: currentCallPeer,
+      offer,
+      isVideo: currentCallIsVideo
+    });
+
+    callTimeoutId = setTimeout(() => {
+      if (currentCallStatus === 'outgoing' && currentCallPeer) {
+        const peer = currentCallPeer;
+        alert('Không có phản hồi, cuộc gọi đã bị huỷ.');
+        socket.emit('end_call', { to: peer });
+        resetCallState(true);
+      }
+    }, 30000);
+  } catch (err) {
+    console.error('Lỗi khi bắt đầu call:', err);
+    alert('Không thể bắt đầu cuộc gọi: ' + err.message);
+    resetCallState(true);
+  }
+}
+
 
     createPeerConnection();
     localStream.getTracks().forEach(track => pc.addTrack(track, localStream));
@@ -952,8 +993,10 @@ async function acceptIncomingCall() {
 
 function handleCallButton(isVideo) {
   if (dmTarget) {
-    startCall(isVideo); // 1-1
+    // Gọi 1-1
+    startDirectCall(isVideo);
   } else {
+    // Nếu không chọn DM thì dùng call phòng
     if (!groupCallActive) {
       joinGroupCall(isVideo);
     } else {
@@ -962,6 +1005,7 @@ function handleCallButton(isVideo) {
     }
   }
 }
+
 
 // ==== GẮN SỰ KIỆN NÚT GỌI / ĐỒNG Ý / TỪ CHỐI ====
 if (btnCallVoice) {

@@ -49,6 +49,7 @@ let groupCallRoom = null;
 let groupLocalStream = null;
 let groupPeers = {};          // username -> RTCPeerConnection
 let groupRemoteStreams = {};  // username -> MediaStream
+let groupParticipants = new Set(); // Tên các thành viên đang trong group call
 
 const ICE_SERVERS = [
   { urls: 'stun:stun.l.google.com:19302' }
@@ -97,6 +98,34 @@ const btnRejectCall = document.getElementById('btnRejectCall');
 const callMediaWrapper = document.getElementById('callMediaWrapper');
 const localVideoEl = document.getElementById('localVideo');
 const remoteVideoEl = document.getElementById('remoteVideo');
+const callParticipantsBox = document.getElementById('callParticipants');
+
+// ==== DRAGGABLE CALL BOX ====
+const callBox = document.querySelector('.call-box');
+let isDraggingCall = false;
+let dragOffsetX = 0;
+let dragOffsetY = 0;
+
+if (callBox) {
+  callBox.addEventListener('mousedown', (e) => {
+    if (e.target.closest('button')) return;
+    isDraggingCall = true;
+    const rect = callBox.getBoundingClientRect();
+    dragOffsetX = e.clientX - rect.left;
+    dragOffsetY = e.clientY - rect.top;
+    callBox.style.transform = 'none';
+  });
+}
+
+document.addEventListener('mousemove', (e) => {
+  if (!isDraggingCall || !callBox) return;
+  callBox.style.left = `${e.clientX - dragOffsetX}px`;
+  callBox.style.top = `${e.clientY - dragOffsetY}px`;
+});
+
+document.addEventListener('mouseup', () => {
+  isDraggingCall = false;
+});
 
 // --- 3. LOGIC KHỞI ĐỘNG ---
 async function boot(name) {
@@ -408,6 +437,30 @@ function updateDmBadge(user) {
   const count = dmUnread[user] || 0;
   badge.textContent = count;
   badge.style.display = count ? 'inline-flex' : 'none';
+}
+
+function renderCallParticipants() {
+  if (!callParticipantsBox) return;
+
+  // Call 1-1
+  if (currentCallPeer && !groupCallActive) {
+    const meName = username || 'Bạn';
+    callParticipantsBox.innerHTML = `
+      <span class="participant-pill">${meName}</span>
+      <span class="participant-pill">${currentCallPeer}</span>
+    `;
+    return;
+  }
+
+  // Group call
+  if (groupCallActive && groupParticipants.size > 0) {
+    callParticipantsBox.innerHTML = Array.from(groupParticipants)
+      .map(n => `<span class="participant-pill">${n}</span>`)
+      .join('');
+    return;
+  }
+
+  callParticipantsBox.innerHTML = '';
 }
 
 async function loadRoomHistory(room) {
@@ -831,6 +884,8 @@ function resetCallState(closeOverlay = true) {
   currentCallPeer = null;
   currentCallIsVideo = false;
   currentCallStatus = 'idle';
+  groupParticipants.clear();
+  renderCallParticipants();
 
   if (closeOverlay) closeCallOverlay();
 }
@@ -876,6 +931,13 @@ async function joinGroupCall(isVideo) {
         leaveGroupCall();
       }
       // res.participants: những người đã ở trong call trước mình
+      groupParticipants = new Set(res?.participants || []);
+      groupParticipants.add(username);
+      appendMessage({
+        content: `Bạn đã tham gia ${isVideo ? 'video' : 'voice'} call phòng ${groupCallRoom}`,
+        system: true
+      });
+      renderCallParticipants();
     });
   } catch (err) {
     console.error('Lỗi joinGroupCall:', err);
@@ -949,7 +1011,14 @@ function leaveGroupCall() {
   }
 
   groupCallActive = false;
+  const leftRoom = groupCallRoom;
   groupCallRoom = null;
+  appendMessage({
+    content: `Bạn đã rời cuộc gọi phòng ${leftRoom || currentRoom}`,
+    system: true
+  });
+  groupParticipants.clear();
+  renderCallParticipants();
 
   if (remoteVideoEl) remoteVideoEl.srcObject = null;
   if (localVideoEl) localVideoEl.srcObject = null;
@@ -990,6 +1059,11 @@ async function startDirectCall(isVideo) {
   currentCallIsVideo = !!isVideo;
   currentCallStatus = 'outgoing';
 
+  appendMessage({
+    content: `Bạn bắt đầu ${isVideo ? 'video call' : 'voice call'} với ${currentCallPeer}`,
+    system: true
+  });
+
   try {
     const constraints = { audio: true, video: !!isVideo };
     localStream = await navigator.mediaDevices.getUserMedia(constraints);
@@ -1002,6 +1076,7 @@ async function startDirectCall(isVideo) {
     }
 
     openCallOverlay(currentCallPeer, currentCallIsVideo, 'outgoing');
+    renderCallParticipants();
 
     const offer = await pc.createOffer();
     await pc.setLocalDescription(offer);
@@ -1067,6 +1142,7 @@ async function acceptIncomingCall() {
 
     currentCallStatus = 'in-call';
     openCallOverlay(currentCallPeer, currentCallIsVideo, 'in-call');
+    renderCallParticipants();
 
     socket.emit('answer_call', {
       to: currentCallPeer,
@@ -1148,6 +1224,10 @@ if (btnRejectCall) {
     } else if ((currentCallStatus === 'outgoing' || currentCallStatus === 'in-call') && currentCallPeer) {
       const peer = currentCallPeer;
       socket.emit('end_call', { to: peer });
+      appendMessage({
+        content: `Cuộc gọi với ${peer} đã kết thúc`,
+        system: true
+      });
       resetCallState(true);
     }
   });
@@ -1177,6 +1257,7 @@ socket.on('incoming_call', ({ from, offer, isVideo }) => {
   currentCallStatus = 'ringing';
 
   openCallOverlay(from, currentCallIsVideo, 'incoming');
+  renderCallParticipants();
 
   // Thời gian chờ cho người nhận: 30s không bấm -> tự từ chối
   callTimeoutId = setTimeout(() => {
@@ -1195,6 +1276,7 @@ socket.on('call_answered', async ({ from, answer }) => {
     await pc.setRemoteDescription(new RTCSessionDescription(answer));
     currentCallStatus = 'in-call';
     openCallOverlay(currentCallPeer, currentCallIsVideo, 'in-call');
+    renderCallParticipants();
     clearCallTimeout();
   } catch (err) {
     console.error('Lỗi setRemoteDescription answer:', err);
@@ -1219,6 +1301,11 @@ socket.on('call_rejected', ({ from, reason }) => {
   if (reason === 'busy') msg = 'Người nhận đang bận.';
   if (reason === 'no_answer') msg = 'Người nhận không trả lời.';
 
+  appendMessage({
+    content: `Cuộc gọi tới ${currentCallPeer} bị từ chối: ${msg}`,
+    system: true
+  });
+
   alert(msg);
   resetCallState(true);
 });
@@ -1226,6 +1313,10 @@ socket.on('call_rejected', ({ from, reason }) => {
 // Đầu bên kia kết thúc cuộc gọi
 socket.on('call_ended', ({ from }) => {
   if (!currentCallPeer || from !== currentCallPeer) return;
+  appendMessage({
+    content: `Cuộc gọi với ${from || currentCallPeer} đã kết thúc`,
+    system: true
+  });
   alert('Cuộc gọi đã kết thúc.');
   resetCallState(true);
 });
@@ -1255,6 +1346,9 @@ socket.on('room_call_incoming', ({ room, from, isVideo }) => {
 socket.on('room_call_joined', async ({ room, user }) => {
   if (!groupCallActive || room !== groupCallRoom) return;
   if (user === username) return;
+
+  groupParticipants.add(user);
+  renderCallParticipants();
 
   try {
     const pc = createGroupPeerConnection(user);
@@ -1311,4 +1405,6 @@ socket.on('room_call_left', ({ room, user }) => {
     delete groupPeers[user];
   }
   delete groupRemoteStreams[user];
+  groupParticipants.delete(user);
+  renderCallParticipants();
 });

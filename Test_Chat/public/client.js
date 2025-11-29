@@ -26,12 +26,6 @@ let localStream = null;
 let currentCallPeer = null;
 let currentCallIsVideo = false;
 let remoteAudioEl = null;
-const ICE_SERVERS = [
-  { urls: 'stun:stun.l.google.com:19302' },
-  { urls: 'turn:YOUR_TURN_HOST:3478', username: 'USER', credential: 'PASS' }
-];
-
-pc = new RTCPeerConnection({ iceServers: ICE_SERVERS });
 
 // trạng thái cuộc gọi: 'idle' | 'outgoing' | 'ringing' | 'in-call'
 let currentCallStatus = 'idle';

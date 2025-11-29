@@ -851,6 +851,14 @@ function closeCallOverlay() {
   if (!callOverlay) return;
   callOverlay.style.display = 'none';
   if (callMediaWrapper) callMediaWrapper.style.display = 'none';
+  // Reset vị trí/kích thước popup về mặc định cho lần mở sau
+  if (callBox) {
+    callBox.style.left = '50%';
+    callBox.style.top = '50%';
+    callBox.style.transform = 'translate(-50%, -50%)';
+    callBox.style.width = '';
+    callBox.style.height = '';
+  }
 }
 
 function createPeerConnection() {

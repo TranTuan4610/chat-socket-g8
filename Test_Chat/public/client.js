@@ -189,8 +189,21 @@ function appendMessage({ _id, content, sender, createdAt, isPrivate, system, rea
 // --- 5. SOCKET EVENTS (NHẬN TIN) ---
 
 socket.on('chat_message', (payload) => {
+  // Bỏ qua nếu không có phòng
+  if (!payload.room) return;
+
+  // Đang xem DM -> không show tin phòng
+  if (dmTarget) {
+    return;
+  }
+
+  // Đang ở room khác với room của message -> bỏ qua
+  if (payload.room !== currentRoom) {
+    return;
+  }
+
   appendMessage(payload);
-  if (payload.sender !== username && payload.room === currentRoom && payload._id) {
+  if (payload.sender !== username && payload._id) {
     socket.emit('message_read', { messageId: payload._id });
   }
 });

@@ -665,9 +665,18 @@ function createPeerConnection() {
   };
 
   pc.ontrack = (event) => {
-    const [stream] = event.streams;
-    if (!stream) return;
+  const [stream] = event.streams;
+  if (!stream) return;
 
+  if (currentCallIsVideo && remoteVideoEl) {
+    remoteVideoEl.srcObject = stream;
+    // NEW (tuỳ chọn)
+    remoteVideoEl.play().catch(() => {});
+  } else if (!currentCallIsVideo && remoteAudioEl) {
+    remoteAudioEl.srcObject = stream;
+    // NEW (tuỳ chọn)
+    remoteAudioEl.play().catch(() => {});
+  }
     if (currentCallIsVideo && remoteVideoEl) {
       remoteVideoEl.srcObject = stream;
     } else if (!currentCallIsVideo && remoteAudioEl) {
@@ -876,8 +885,22 @@ async function startDirectCall(isVideo) {
   }
 }
 
-async function startCall(isVideo) {
-  return startDirectCall(isVideo);
+async function startDirectCall(isVideo) {
+  if (!dmTarget) {
+    alert('Bạn cần chọn 1 người trong danh sách Online để gọi riêng.');
+    return;
+  }
+
+  // >>> NEW: nếu đang ghi âm voice thì dừng lại để giải phóng micro
+  if (typeof mediaRecorder !== 'undefined' &&
+      mediaRecorder &&
+      mediaRecorder.state === 'recording') {
+    try {
+      mediaRecorder.stop();
+    } catch (e) {
+      console.warn('Không dừng được mediaRecorder:', e);
+    }
+  }
 }
 
 async function acceptIncomingCall() {
@@ -885,6 +908,16 @@ async function acceptIncomingCall() {
 
   clearCallTimeout();
 
+  if (typeof mediaRecorder !== 'undefined' &&
+      mediaRecorder &&
+      mediaRecorder.state === 'recording') {
+    try {
+      mediaRecorder.stop();
+    } catch (e) {
+      console.warn('Không dừng được mediaRecorder:', e);
+    }
+  }
+  
   try {
     const constraints = { audio: true, video: !!currentCallIsVideo };
     localStream = await navigator.mediaDevices.getUserMedia(constraints);

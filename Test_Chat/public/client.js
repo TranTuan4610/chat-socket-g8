@@ -519,6 +519,18 @@ if (avatarCircle && avatarMenu) {
 // ---  10. VOICE MESSAGE (Tin nhắn thoại) ---
 let mediaRecorder = null;
 let voiceChunks = [];
+// Dừng ghi âm nếu đang ghi (để giải phóng micro trước khi call)
+function stopVoiceRecordingIfAny() {
+  try {
+    if (mediaRecorder && mediaRecorder.state === 'recording') {
+      mediaRecorder.stop(); // onstop sẽ tự stop các track của stream
+      console.log('Đã dừng MediaRecorder trước khi gọi.');
+    }
+  } catch (e) {
+    console.warn('Không dừng được mediaRecorder trước khi call:', e);
+  }
+}
+
 const btnRecordVoice = document.getElementById('btnRecordVoice');
 
 async function uploadVoiceBlob(blob) {
@@ -724,6 +736,8 @@ async function joinGroupCall(isVideo) {
     return;
   }
 
+   stopVoiceRecordingIfAny();
+
   groupCallRoom = currentRoom;
   const constraints = { audio: true, video: !!isVideo };
 
@@ -772,23 +786,24 @@ function createGroupPeerConnection(peerName) {
   };
 
   pc.ontrack = (event) => {
-    const [stream] = event.streams;
-    if (!stream) return;
+  const [stream] = event.streams;
+  if (!stream) return;
 
-    groupRemoteStreams[peerName] = stream;
-
-    if (remoteVideoEl) {
+  try {
+    if (currentCallIsVideo && remoteVideoEl) {
       remoteVideoEl.srcObject = stream;
-    } else {
-      if (!remoteAudioEl) {
-        remoteAudioEl = document.createElement('audio');
-        remoteAudioEl.autoplay = true;
-        remoteAudioEl.style.display = 'none';
-        document.body.appendChild(remoteAudioEl);
-      }
+      const p = remoteVideoEl.play && remoteVideoEl.play();
+      if (p && p.catch) p.catch(() => {});
+    } else if (!currentCallIsVideo && remoteAudioEl) {
       remoteAudioEl.srcObject = stream;
+      const p = remoteAudioEl.play && remoteAudioEl.play();
+      if (p && p.catch) p.catch(() => {});
     }
-  };
+  } catch (e) {
+    console.warn('Lỗi playback remote stream:', e);
+  }
+};
+
 
   if (groupLocalStream) {
     groupLocalStream.getTracks().forEach(track => pc.addTrack(track, groupLocalStream));
@@ -835,7 +850,7 @@ async function startDirectCall(isVideo) {
     const constraints = { audio: true, video: !!isVideo };
     localStream = await navigator.mediaDevices.getUserMedia(constraints);
 
-    async function startDirectCall(isVideo) {
+  async function startDirectCall(isVideo) {
   if (!dmTarget) {
     alert('Hãy chọn 1 người (DM) rồi mới gọi 1-1.');
     return;
@@ -855,16 +870,8 @@ async function startDirectCall(isVideo) {
     return;
   }
 
-  // >>> NEW: nếu đang ghi âm voice thì dừng lại để giải phóng micro
-  if (typeof mediaRecorder !== 'undefined' &&
-      mediaRecorder &&
-      mediaRecorder.state === 'recording') {
-    try {
-      mediaRecorder.stop();
-    } catch (e) {
-      console.warn('Không dừng được mediaRecorder:', e);
-    }
-  }
+  // NEW: nếu đang ghi voice thì dừng lại
+  stopVoiceRecordingIfAny();
 
   currentCallPeer = dmTarget;
   currentCallIsVideo = !!isVideo;
@@ -873,6 +880,7 @@ async function startDirectCall(isVideo) {
   try {
     const constraints = { audio: true, video: !!isVideo };
     localStream = await navigator.mediaDevices.getUserMedia(constraints);
+    ...
 
     createPeerConnection();
     localStream.getTracks().forEach(track => pc.addTrack(track, localStream));
@@ -947,6 +955,8 @@ async function acceptIncomingCall() {
   if (currentCallStatus !== 'ringing' || !incomingOffer || !currentCallPeer) return;
 
   clearCallTimeout();
+
+  stopVoiceRecordingIfAny();
 
   if (typeof mediaRecorder !== 'undefined' &&
       mediaRecorder &&

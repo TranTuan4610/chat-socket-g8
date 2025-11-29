@@ -681,9 +681,13 @@ function closeCallOverlay() {
 }
 
 function createPeerConnection() {
-  pc = new RTCPeerConnection({
-    iceServers: ICE_SERVERS
-  });
+  const ICE_SERVERS = [
+    { urls: 'stun:stun.l.google.com:19302' },
+    // Nếu sau này bạn có TURN thì thêm ở đây
+    // { urls: 'turn:YOUR_TURN_HOST:3478', username: 'USER', credential: 'PASS' }
+  ];
+
+  pc = new RTCPeerConnection({ iceServers: ICE_SERVERS });
 
   pc.onicecandidate = (event) => {
     if (event.candidate && currentCallPeer) {
@@ -698,14 +702,11 @@ function createPeerConnection() {
     const [stream] = event.streams;
     if (!stream) return;
 
-    if (currentCallIsVideo) {
-      if (remoteVideoEl) {
-        remoteVideoEl.srcObject = stream;
-        // cố gắng play video (một số browser cần)
-        remoteVideoEl.play().catch(() => {});
-      }
+    if (currentCallIsVideo && remoteVideoEl) {
+      remoteVideoEl.srcObject = stream;
+      if (remoteVideoEl.play) remoteVideoEl.play().catch(() => {});
     } else {
-      // Voice call
+      // voice
       if (!remoteAudioEl) {
         remoteAudioEl = document.createElement('audio');
         remoteAudioEl.autoplay = true;
@@ -713,10 +714,11 @@ function createPeerConnection() {
         document.body.appendChild(remoteAudioEl);
       }
       remoteAudioEl.srcObject = stream;
-      remoteAudioEl.play().catch(() => {});
+      if (remoteAudioEl.play) remoteAudioEl.play().catch(() => {});
     }
   };
 }
+
 
 
 function resetCallState(closeOverlay = true) {
@@ -867,19 +869,6 @@ function leaveGroupCall() {
 }
 
 async function startDirectCall(isVideo) {
-
-  currentCallPeer = dmTarget;
-  currentCallIsVideo = !!isVideo;
-  currentCallStatus = 'outgoing';
-
-  try {
-
-    stopVoiceRecordingIfAny();
-
-    const constraints = { audio: true, video: !!isVideo };
-    localStream = await navigator.mediaDevices.getUserMedia(constraints);
-
-  async function startDirectCall(isVideo) {
   if (!dmTarget) {
     alert('Hãy chọn 1 người (DM) rồi mới gọi 1-1.');
     return;
@@ -889,7 +878,6 @@ async function startDirectCall(isVideo) {
     if (!ok) return;
     leaveGroupCall();
   }
-
   if (currentCallStatus !== 'idle') {
     alert('Bạn đang trong một cuộc gọi khác.');
     return;
@@ -899,8 +887,14 @@ async function startDirectCall(isVideo) {
     return;
   }
 
-  // NEW: nếu đang ghi voice thì dừng lại
-  stopVoiceRecordingIfAny();
+  // 🔥 QUAN TRỌNG: nếu đang ghi voice thì dừng để giải phóng micro
+  if (typeof mediaRecorder !== 'undefined' &&
+      mediaRecorder &&
+      mediaRecorder.state === 'recording') {
+    try { mediaRecorder.stop(); } catch (e) {
+      console.warn('Không dừng được mediaRecorder:', e);
+    }
+  }
 
   currentCallPeer = dmTarget;
   currentCallIsVideo = !!isVideo;
@@ -909,7 +903,6 @@ async function startDirectCall(isVideo) {
   try {
     const constraints = { audio: true, video: !!isVideo };
     localStream = await navigator.mediaDevices.getUserMedia(constraints);
-    ...
 
     createPeerConnection();
     localStream.getTracks().forEach(track => pc.addTrack(track, localStream));
@@ -944,40 +937,6 @@ async function startDirectCall(isVideo) {
   }
 }
 
-
-    createPeerConnection();
-    localStream.getTracks().forEach(track => pc.addTrack(track, localStream));
-
-    if (currentCallIsVideo && localVideoEl) {
-      localVideoEl.srcObject = localStream;
-    }
-
-    openCallOverlay(currentCallPeer, currentCallIsVideo, 'outgoing');
-
-    const offer = await pc.createOffer();
-    await pc.setLocalDescription(offer);
-
-    socket.emit('call_user', {
-      to: currentCallPeer,
-      offer,
-      isVideo: currentCallIsVideo
-    });
-
-    // timeout 30s không trả lời
-    callTimeoutId = setTimeout(() => {
-      if (currentCallStatus === 'outgoing' && currentCallPeer) {
-        const peer = currentCallPeer;
-        alert('Không có phản hồi, cuộc gọi đã bị huỷ.');
-        socket.emit('end_call', { to: peer });
-        resetCallState(true);
-      }
-    }, 30000);
-  } catch (err) {
-    console.error('Lỗi khi bắt đầu call:', err);
-    alert('Không thể bắt đầu cuộc gọi: ' + err.message);
-    resetCallState(true);
-  }
-}
 
 
 async function acceptIncomingCall() {
@@ -1035,10 +994,8 @@ async function acceptIncomingCall() {
 
 function handleCallButton(isVideo) {
   if (dmTarget) {
-    // Gọi 1-1
-    startDirectCall(isVideo);
+    startDirectCall(isVideo); // gọi 1-1
   } else {
-    // Nếu không chọn DM thì dùng call phòng
     if (!groupCallActive) {
       joinGroupCall(isVideo);
     } else {
@@ -1047,6 +1004,7 @@ function handleCallButton(isVideo) {
     }
   }
 }
+
 
 
 // ==== GẮN SỰ KIỆN NÚT GỌI / ĐỒNG Ý / TỪ CHỐI ====

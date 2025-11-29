@@ -6,18 +6,6 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Socket Chat Messenger</title>
 
-  <script>
-    // Kiểm tra xem đã có tên trong localStorage chưa
-    (function() {
-      const storedName = localStorage.getItem('chat_username');
-      // Nếu chưa có thì chuyển sang trang login.html
-      if (!storedName) {
-        // dùng replace để không quay lại bằng nút Back
-        window.location.replace('login.html');
-      }
-    })();
-  </script>
-  
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600&display=swap" rel="stylesheet">
   <link href="https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css" rel="stylesheet">
   <link rel="stylesheet" href="styles.css" />

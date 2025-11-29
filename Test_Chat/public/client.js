@@ -99,16 +99,22 @@ const callMediaWrapper = document.getElementById('callMediaWrapper');
 const localVideoEl = document.getElementById('localVideo');
 const remoteVideoEl = document.getElementById('remoteVideo');
 const callParticipantsBox = document.getElementById('callParticipants');
+const callResizeHandle = document.querySelector('.call-resize-handle');
 
 // ==== DRAGGABLE CALL BOX ====
 const callBox = document.querySelector('.call-box');
 let isDraggingCall = false;
 let dragOffsetX = 0;
 let dragOffsetY = 0;
+let isResizingCall = false;
+let resizeStartX = 0;
+let resizeStartY = 0;
+let startWidth = 0;
+let startHeight = 0;
 
 if (callBox) {
   callBox.addEventListener('mousedown', (e) => {
-    if (e.target.closest('button')) return;
+    if (e.target.closest('button') || isResizingCall) return;
     isDraggingCall = true;
     const rect = callBox.getBoundingClientRect();
     dragOffsetX = e.clientX - rect.left;
@@ -118,6 +124,14 @@ if (callBox) {
 }
 
 document.addEventListener('mousemove', (e) => {
+  if (isResizingCall && callBox) {
+    const newWidth = Math.max(220, startWidth + (e.clientX - resizeStartX));
+    const newHeight = Math.max(200, startHeight + (e.clientY - resizeStartY));
+    callBox.style.width = `${newWidth}px`;
+    callBox.style.height = `${newHeight}px`;
+    return;
+  }
+
   if (!isDraggingCall || !callBox) return;
   callBox.style.left = `${e.clientX - dragOffsetX}px`;
   callBox.style.top = `${e.clientY - dragOffsetY}px`;
@@ -125,7 +139,22 @@ document.addEventListener('mousemove', (e) => {
 
 document.addEventListener('mouseup', () => {
   isDraggingCall = false;
+  isResizingCall = false;
 });
+
+// ==== RESIZE HANDLE ====
+if (callResizeHandle && callBox) {
+  callResizeHandle.addEventListener('mousedown', (e) => {
+    e.stopPropagation();
+    isResizingCall = true;
+    const rect = callBox.getBoundingClientRect();
+    resizeStartX = e.clientX;
+    resizeStartY = e.clientY;
+    startWidth = rect.width;
+    startHeight = rect.height;
+    callBox.style.transform = 'none';
+  });
+}
 
 // --- 3. LOGIC KHỞI ĐỘNG ---
 async function boot(name) {

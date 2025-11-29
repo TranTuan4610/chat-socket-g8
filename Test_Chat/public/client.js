@@ -1,4 +1,4 @@
-const API_BASE = "https://chat-socket-g8.onrender.com";
+const API_BASE = "https://chat-socket-g8.vercel.app";
 const socket = io(API_BASE, {
   transports: ["websocket", "polling"]
 });

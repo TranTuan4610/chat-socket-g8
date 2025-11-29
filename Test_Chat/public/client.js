@@ -824,11 +824,14 @@ function leaveGroupCall() {
   closeCallOverlay();
 }
 
+// Chỉ còn 1 hàm startDirectCall duy nhất
 async function startDirectCall(isVideo) {
   if (!dmTarget) {
-    alert('Hãy chọn 1 người (DM) rồi mới gọi 1-1.');
+    alert('Bạn cần chọn 1 người trong danh sách Online để gọi riêng.');
     return;
   }
+
+  // Nếu đang ở cuộc gọi phòng thì hỏi rời phòng trước
   if (groupCallActive) {
     const ok = confirm('Bạn đang ở cuộc gọi phòng, rời cuộc gọi phòng trước khi gọi 1-1?');
     if (!ok) return;
@@ -839,9 +842,21 @@ async function startDirectCall(isVideo) {
     alert('Bạn đang trong một cuộc gọi khác.');
     return;
   }
+
   if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
     alert('Trình duyệt không hỗ trợ WebRTC / getUserMedia.');
     return;
+  }
+
+  // NEW: nếu đang ghi âm voice thì dừng lại để giải phóng micro
+  if (typeof mediaRecorder !== 'undefined' &&
+      mediaRecorder &&
+      mediaRecorder.state === 'recording') {
+    try {
+      mediaRecorder.stop();
+    } catch (e) {
+      console.warn('Không dừng được mediaRecorder:', e);
+    }
   }
 
   currentCallPeer = dmTarget;
@@ -870,6 +885,7 @@ async function startDirectCall(isVideo) {
       isVideo: currentCallIsVideo
     });
 
+    // timeout 30s không trả lời
     callTimeoutId = setTimeout(() => {
       if (currentCallStatus === 'outgoing' && currentCallPeer) {
         const peer = currentCallPeer;
@@ -885,23 +901,6 @@ async function startDirectCall(isVideo) {
   }
 }
 
-async function startDirectCall(isVideo) {
-  if (!dmTarget) {
-    alert('Bạn cần chọn 1 người trong danh sách Online để gọi riêng.');
-    return;
-  }
-
-  // >>> NEW: nếu đang ghi âm voice thì dừng lại để giải phóng micro
-  if (typeof mediaRecorder !== 'undefined' &&
-      mediaRecorder &&
-      mediaRecorder.state === 'recording') {
-    try {
-      mediaRecorder.stop();
-    } catch (e) {
-      console.warn('Không dừng được mediaRecorder:', e);
-    }
-  }
-}
 
 async function acceptIncomingCall() {
   if (currentCallStatus !== 'ringing' || !incomingOffer || !currentCallPeer) return;

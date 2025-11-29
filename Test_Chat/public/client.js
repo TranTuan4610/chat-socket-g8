@@ -3,6 +3,14 @@ const socket = io(API_BASE, {
   transports: ["websocket", "polling"]
 });
 
+const ICE_SERVERS = [
+  { urls: 'stun:stun.l.google.com:19302' },
+  { urls: 'turn:YOUR_TURN_HOST:3478', username: 'USER', credential: 'PASS' }
+];
+
+pc = new RTCPeerConnection({ iceServers: ICE_SERVERS });
+
+
 // --- 1. KIỂM TRA ĐĂNG NHẬP ---
 const storedName = localStorage.getItem('chat_username');
 
@@ -680,21 +688,29 @@ function createPeerConnection() {
   const [stream] = event.streams;
   if (!stream) return;
 
-  if (currentCallIsVideo && remoteVideoEl) {
-    remoteVideoEl.srcObject = stream;
-    // NEW (tuỳ chọn)
-    remoteVideoEl.play().catch(() => {});
-  } else if (!currentCallIsVideo && remoteAudioEl) {
-    remoteAudioEl.srcObject = stream;
-    // NEW (tuỳ chọn)
-    remoteAudioEl.play().catch(() => {});
-  }
-    if (currentCallIsVideo && remoteVideoEl) {
+  groupRemoteStreams[peerName] = stream;
+
+  try {
+    if (remoteVideoEl) {
       remoteVideoEl.srcObject = stream;
-    } else if (!currentCallIsVideo && remoteAudioEl) {
+      const p = remoteVideoEl.play && remoteVideoEl.play();
+      if (p && p.catch) p.catch(() => {});
+    } else {
+      if (!remoteAudioEl) {
+        remoteAudioEl = document.createElement('audio');
+        remoteAudioEl.autoplay = true;
+        remoteAudioEl.style.display = 'none';
+        document.body.appendChild(remoteAudioEl);
+      }
       remoteAudioEl.srcObject = stream;
+      const p = remoteAudioEl.play && remoteAudioEl.play();
+      if (p && p.catch) p.catch(() => {});
     }
-  };
+  } catch (e) {
+    console.warn('Lỗi playback group remote stream:', e);
+  }
+};
+
 }
 
 function resetCallState(closeOverlay = true) {

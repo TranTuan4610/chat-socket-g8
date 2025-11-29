@@ -39,6 +39,9 @@ let groupLocalStream = null;
 let groupPeers = {};          // username -> RTCPeerConnection
 let groupRemoteStreams = {};  // username -> MediaStream
 
+const ICE_SERVERS = [
+  { urls: 'stun:stun.l.google.com:19302' }
+];
 // DOM helper
 const $ = (q) => document.querySelector(q);
 
@@ -518,6 +521,19 @@ if (avatarCircle && avatarMenu) {
   }
 }
 
+// Dừng ghi âm nếu đang ghi (để giải phóng micro trước khi call)
+function stopVoiceRecordingIfAny() {
+  try {
+    if (mediaRecorder && mediaRecorder.state === 'recording') {
+      mediaRecorder.stop(); // onstop sẽ tự stop các track của stream
+      console.log('Đã dừng MediaRecorder trước khi gọi.');
+    }
+  } catch (e) {
+    console.warn('Không dừng được mediaRecorder trước khi call:', e);
+  }
+}
+
+
 // ---  10. VOICE MESSAGE (Tin nhắn thoại) ---
 let mediaRecorder = null;
 let voiceChunks = [];
@@ -666,7 +682,7 @@ function closeCallOverlay() {
 
 function createPeerConnection() {
   pc = new RTCPeerConnection({
-    iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
+    iceServers: ICE_SERVERS
   });
 
   pc.onicecandidate = (event) => {
@@ -679,17 +695,17 @@ function createPeerConnection() {
   };
 
   pc.ontrack = (event) => {
-  const [stream] = event.streams;
-  if (!stream) return;
+    const [stream] = event.streams;
+    if (!stream) return;
 
-  groupRemoteStreams[peerName] = stream;
-
-  try {
-    if (remoteVideoEl) {
-      remoteVideoEl.srcObject = stream;
-      const p = remoteVideoEl.play && remoteVideoEl.play();
-      if (p && p.catch) p.catch(() => {});
+    if (currentCallIsVideo) {
+      if (remoteVideoEl) {
+        remoteVideoEl.srcObject = stream;
+        // cố gắng play video (một số browser cần)
+        remoteVideoEl.play().catch(() => {});
+      }
     } else {
+      // Voice call
       if (!remoteAudioEl) {
         remoteAudioEl = document.createElement('audio');
         remoteAudioEl.autoplay = true;
@@ -697,15 +713,11 @@ function createPeerConnection() {
         document.body.appendChild(remoteAudioEl);
       }
       remoteAudioEl.srcObject = stream;
-      const p = remoteAudioEl.play && remoteAudioEl.play();
-      if (p && p.catch) p.catch(() => {});
+      remoteAudioEl.play().catch(() => {});
     }
-  } catch (e) {
-    console.warn('Lỗi playback group remote stream:', e);
-  }
-};
-
+  };
 }
+
 
 function resetCallState(closeOverlay = true) {
   clearCallTimeout();
@@ -752,6 +764,9 @@ async function joinGroupCall(isVideo) {
   const constraints = { audio: true, video: !!isVideo };
 
   try {
+
+    stopVoiceRecordingIfAny();
+
     groupLocalStream = await navigator.mediaDevices.getUserMedia(constraints);
     groupCallActive = true;
 
@@ -781,7 +796,7 @@ function createGroupPeerConnection(peerName) {
   if (groupPeers[peerName]) return groupPeers[peerName];
 
   const pc = new RTCPeerConnection({
-    iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
+    iceServers: ICE_SERVERS
   });
 
   pc.onicecandidate = (event) => {
@@ -796,24 +811,25 @@ function createGroupPeerConnection(peerName) {
   };
 
   pc.ontrack = (event) => {
-  const [stream] = event.streams;
-  if (!stream) return;
+    const [stream] = event.streams;
+    if (!stream) return;
 
-  try {
-    if (currentCallIsVideo && remoteVideoEl) {
+    groupRemoteStreams[peerName] = stream;
+
+    if (remoteVideoEl) {
       remoteVideoEl.srcObject = stream;
-      const p = remoteVideoEl.play && remoteVideoEl.play();
-      if (p && p.catch) p.catch(() => {});
-    } else if (!currentCallIsVideo && remoteAudioEl) {
+      remoteVideoEl.play && remoteVideoEl.play().catch(() => {});
+    } else {
+      if (!remoteAudioEl) {
+        remoteAudioEl = document.createElement('audio');
+        remoteAudioEl.autoplay = true;
+        remoteAudioEl.style.display = 'none';
+        document.body.appendChild(remoteAudioEl);
+      }
       remoteAudioEl.srcObject = stream;
-      const p = remoteAudioEl.play && remoteAudioEl.play();
-      if (p && p.catch) p.catch(() => {});
+      remoteAudioEl.play && remoteAudioEl.play().catch(() => {});
     }
-  } catch (e) {
-    console.warn('Lỗi playback remote stream:', e);
-  }
-};
-
+  };
 
   if (groupLocalStream) {
     groupLocalStream.getTracks().forEach(track => pc.addTrack(track, groupLocalStream));
@@ -822,6 +838,7 @@ function createGroupPeerConnection(peerName) {
   groupPeers[peerName] = pc;
   return pc;
 }
+
 
 function leaveGroupCall() {
   if (!groupCallActive) return;
@@ -849,7 +866,6 @@ function leaveGroupCall() {
   closeCallOverlay();
 }
 
-// Chỉ còn 1 hàm startDirectCall duy nhất
 async function startDirectCall(isVideo) {
 
   currentCallPeer = dmTarget;
@@ -857,6 +873,9 @@ async function startDirectCall(isVideo) {
   currentCallStatus = 'outgoing';
 
   try {
+
+    stopVoiceRecordingIfAny();
+
     const constraints = { audio: true, video: !!isVideo };
     localStream = await navigator.mediaDevices.getUserMedia(constraints);
 
@@ -972,6 +991,9 @@ async function acceptIncomingCall() {
       mediaRecorder &&
       mediaRecorder.state === 'recording') {
     try {
+
+      stopVoiceRecordingIfAny();
+
       mediaRecorder.stop();
     } catch (e) {
       console.warn('Không dừng được mediaRecorder:', e);

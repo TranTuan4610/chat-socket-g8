@@ -155,6 +155,14 @@ body.dark .profile-label {
 .users-list li { padding: 8px; display: flex; align-items: center; gap: 10px; cursor: pointer; font-size: 0.9rem; }
 .users-list li:hover { color: #667eea; background: #f9f9f9; border-radius: 8px;}
 .users-list li::before { content: ''; width: 8px; height: 8px; background: #2ccf6d; border-radius: 50%; }
+.users-list li.active {
+  background: var(--primary-gradient);
+  color: #fff;
+}
+
+body.dark .users-list li.active {
+  background: #4b52e3;
+}
 
 /* --- MAIN CHAT AREA (CỘT PHẢI) --- */
 .chat-area { flex: 1; display: flex; flex-direction: column; background: #f2f4f7; }

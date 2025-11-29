@@ -45,6 +45,23 @@ const fileInput = $('#fileInput');
 const fileUploadBtn = $('#fileUploadBtn');
 const btnLogout = $('#btnLogout');
 
+// Profile DOM
+const userProfileBox = document.getElementById('userProfileBox');
+const profileBox = document.getElementById('profileDetails');
+const profileNameValue = document.getElementById('profileNameValue');
+const profileEmailValue = document.getElementById('profileEmailValue');
+const profileTypeValue = document.getElementById('profileTypeValue');
+
+// Toggle hiển thị hộp profile khi click vào khối user (trừ nút logout)
+if (userProfileBox && profileBox) {
+  userProfileBox.addEventListener('click', (e) => {
+    // không toggle khi bấm vào nút logout
+    if (e.target.closest('#btnLogout')) return;
+    profileBox.classList.toggle('open');
+  });
+}
+
+
 // Call DOM
 const btnCallVoice = document.getElementById('btnCallVoice');
 const btnCallVideo = document.getElementById('btnCallVideo');
@@ -70,6 +87,22 @@ async function boot(name) {
 
     username = name;
     if (me) me.textContent = username;
+
+    // Cập nhật thông tin profile
+    if (profileNameValue) {
+      profileNameValue.textContent = username;
+    }
+
+    const emailLS = localStorage.getItem('chat_email');
+    if (profileEmailValue) {
+      profileEmailValue.textContent = emailLS || 'Không có (guest)';
+    }
+
+    const typeLS = localStorage.getItem('chat_type');
+    if (profileTypeValue) {
+      profileTypeValue.textContent =
+        typeLS === 'guest' ? 'Khách (Guest)' : 'Tài khoản Firebase';
+    }
 
     // Tải danh sách phòng và vào phòng general
     ['general'].concat(res.rooms.filter(x => x !== 'general')).forEach(addRoom);
@@ -297,6 +330,9 @@ if (btnLogout) {
   btnLogout.onclick = () => {
     if (confirm('Bạn muốn đăng xuất?')) {
       localStorage.removeItem('chat_username');
+      localStorage.removeItem('chat_email');
+      localStorage.removeItem('chat_type');
+      localStorage.removeItem('chat_avatar');
       window.location.href = 'login.html';
     }
   };

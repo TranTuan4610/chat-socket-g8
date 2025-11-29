@@ -83,6 +83,58 @@ body { height: 100vh; background: var(--bg-color); overflow: hidden; }
 #btnLogout { border: none; background: none; color: #ff4757; cursor: pointer; font-size: 1.2rem; transition: transform 0.2s;}
 #btnLogout:hover { transform: scale(1.1); }
 
+/* ==== PROFILE DETAILS (THÔNG TIN USER) ==== */
+.profile-details {
+  margin: 0 15px 12px;
+  padding: 10px 12px;
+  background: #f8f9fa;
+  border-radius: 12px;
+  border: 1px solid #eee;
+  font-size: 0.8rem;
+  color: #555;
+  display: none;                 /* ẩn mặc định, click mới mở */
+}
+
+.profile-details.open {
+  display: block;
+}
+
+.profile-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.profile-row:last-child {
+  margin-bottom: 0;
+}
+
+.profile-label {
+  font-weight: 600;
+  color: #777;
+}
+
+.profile-value {
+  max-width: 60%;
+  text-align: right;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+/* Dark mode cho profile */
+body.dark .profile-details {
+  background: #2a2b2f;
+  border-color: #3a3b3e;
+  color: #ddd;
+}
+
+body.dark .profile-label {
+  color: #b0b0b0;
+}
+
 .sidebar-content { flex: 1; overflow-y: auto; padding: 0 15px; }
 .sidebar-content h3 { font-size: 0.75rem; color: #999; text-transform: uppercase; margin: 20px 0 10px; }
 

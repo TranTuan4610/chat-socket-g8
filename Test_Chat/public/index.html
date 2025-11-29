@@ -44,10 +44,26 @@
         <h2>Chat App</h2>
       </div>
 
-      <div class="user-profile">
+      <div class="user-profile" id="userProfileBox">
         <div class="avatar-circle"><i class='bx bxs-user'></i></div>
         <div id="me" class="user-name">Đang tải...</div>
         <button id="btnLogout" title="Đăng xuất"><i class='bx bx-log-out'></i></button>
+      </div>
+
+      <!-- Hộp hiển thị thêm thông tin profile -->
+      <div id="profileDetails" class="profile-details">
+        <div class="profile-row">
+          <span class="profile-label">Tên hiển thị</span>
+          <span class="profile-value" id="profileNameValue">...</span>
+        </div>
+        <div class="profile-row">
+          <span class="profile-label">Email</span>
+          <span class="profile-value" id="profileEmailValue">Không có (guest)</span>
+        </div>
+        <div class="profile-row">
+          <span class="profile-label">Loại tài khoản</span>
+          <span class="profile-value" id="profileTypeValue">Guest</span>
+        </div>
       </div>
 
       <!-- Menu chỉnh avatar -->

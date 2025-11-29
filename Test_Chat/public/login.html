@@ -1,11 +1,11 @@
 <!DOCTYPE html>
 <html lang="vi">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Đăng nhập - Socket Chat</title>
-  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600&display=swap" rel="stylesheet">
-  
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600&display=swap" rel="stylesheet" />
+
   <style>
     /* --- CẤU HÌNH CHUNG --- */
     * {
@@ -105,7 +105,7 @@
       transform: translateY(-3px);
       box-shadow: 0 8px 20px rgba(102, 126, 234, 0.4);
     }
-    
+
     #btnJoin:active {
       transform: translateY(-1px);
     }
@@ -135,7 +135,7 @@
       transform: translateY(-1px);
     }
 
-    /* --- CHỌN AVATAR KHI ĐĂNG NHẬP --- */
+    /* --- CHỌN AVATAR --- */
     .avatar-select {
       margin-bottom: 1.5rem;
       display: flex;
@@ -196,6 +196,8 @@
         opacity: 1;
         transform: translateY(0);
       }
+    }
+
     /* --- CHUYỂN GIỮA ĐĂNG NHẬP / ĐĂNG KÝ --- */
     .auth-switch {
       margin-top: 1rem;
@@ -219,489 +221,30 @@
     .auth-switch button:hover {
       text-decoration: underline;
     }
-
-
-    }
   </style>
-  </head>
-
-<script type="module">
-  // === 0. "XÓA" CÁC LISTENER CŨ BẰNG CÁCH CLONE NÚT & INPUT TÊN ===
-  let oldBtnJoin = document.getElementById('btnJoin');
-  let oldNameInput = document.getElementById('loginName');
-
-  import { initializeApp } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-app.js";
-  import { getAnalytics } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-analytics.js";
-
-  const newBtnJoin = oldBtnJoin.cloneNode(true);
-  oldBtnJoin.parentNode.replaceChild(newBtnJoin, oldBtnJoin);
-
-  const newNameInput = oldNameInput.cloneNode(true);
-  oldNameInput.parentNode.replaceChild(newNameInput, oldNameInput);
-
-  // Sau khi clone, lấy lại các phần tử (đã sạch listener cũ)
-  const btnJoin = document.getElementById('btnJoin');
-  const inputName = document.getElementById('loginName');
-
-  const emailInput = document.getElementById('loginEmail');
-  const passInput = document.getElementById('loginPassword');
-  const passConfirmInput = document.getElementById('registerPasswordConfirm');
-
-  const avatarInput = document.getElementById('avatarInput');
-  const avatarPreview = document.getElementById('avatarPreview');
-  const btnChooseAvatar = document.getElementById('btnChooseAvatar');
-  const btnClearAvatar = document.getElementById('btnClearAvatar');
-
-  const btnToggleAuth = document.getElementById('btnToggleAuth');
-  const authHint = document.getElementById('authHint');
-  const titleEl = document.querySelector('.login-box h2');
-
-  const USERS_KEY = 'chat_users';
-  let authMode = 'login';         // 'login' | 'register'
-  let avatarDataUrl = null;       // lưu avatar mà user chọn
-
-  // === 1. HÀM HỖ TRỢ LƯU / ĐỌC USER ===
-  function loadUsers() {
-    try {
-      return JSON.parse(localStorage.getItem(USERS_KEY)) || [];
-    } catch (e) {
-      return [];
-    }
-  }
-
-  function saveUsers(list) {
-    localStorage.setItem(USERS_KEY, JSON.stringify(list));
-  }
-
-  // === 2. CHUYỂN GIỮA ĐĂNG NHẬP / ĐĂNG KÝ ===
-  function setAuthMode(mode) {
-    authMode = mode;
-    if (mode === 'login') {
-      titleEl.textContent = 'Đăng nhập Chat';
-      btnJoin.textContent = 'Đăng nhập';
-      authHint.textContent = 'Chưa có tài khoản?';
-      btnToggleAuth.textContent = 'Đăng ký';
-    } else {
-      titleEl.textContent = 'Đăng ký tài khoản mới';
-      btnJoin.textContent = 'Đăng ký & vào chat';
-      authHint.textContent = 'Đã có tài khoản?';
-      btnToggleAuth.textContent = 'Đăng nhập';
-    }
-    passConfirmInput.value = '';
-  }
-
-  setAuthMode('login');
-
-  btnToggleAuth.addEventListener('click', () => {
-    setAuthMode(authMode === 'login' ? 'register' : 'login');
-  });
-
-  // === 3. XỬ LÝ AVATAR (song song với script cũ, không sao) ===
-  if (avatarInput) {
-    avatarInput.addEventListener('change', (e) => {
-      const file = e.target.files[0];
-      if (!file) return;
-      const reader = new FileReader();
-      reader.onload = (ev) => {
-        avatarDataUrl = ev.target.result;
-        avatarPreview.style.backgroundImage = `url(${ev.target.result})`;
-        avatarPreview.textContent = '';
-        avatarPreview.style.borderStyle = 'solid';
-      };
-      reader.readAsDataURL(file);
-    });
-  }
-
-  if (btnClearAvatar) {
-    btnClearAvatar.addEventListener('click', () => {
-      avatarDataUrl = null;
-      avatarPreview.style.backgroundImage = 'none';
-      avatarPreview.textContent = '+';
-      avatarPreview.style.borderStyle = 'dashed';
-      localStorage.removeItem('chat_avatar');
-    });
-  }
-
-  // === 4. HÀM ĐĂNG NHẬP / ĐĂNG KÝ ===
-  function handleAuthSubmit() {
-    const name = inputName.value.trim();
-    const email = emailInput.value.trim();
-    const pass = passInput.value;
-    const pass2 = passConfirmInput.value;
-
-    if (!email) {
-      alert('Vui lòng nhập email!');
-      emailInput.focus();
-      return;
-    }
-    if (!pass) {
-      alert('Vui lòng nhập mật khẩu!');
-      passInput.focus();
-      return;
-    }
-
-    const users = loadUsers();
-
-    if (authMode === 'register') {
-      if (!name) {
-        alert('Vui lòng nhập tên hiển thị!');
-        inputName.focus();
-        return;
-      }
-      if (pass.length < 6) {
-        alert('Mật khẩu phải tối thiểu 6 ký tự!');
-        passInput.focus();
-        return;
-      }
-      if (pass !== pass2) {
-        alert('Xác nhận mật khẩu không khớp!');
-        passConfirmInput.focus();
-        return;
-      }
-      if (users.some(u => u.email === email)) {
-        alert('Email này đã được đăng ký, hãy dùng email khác hoặc chuyển sang đăng nhập.');
-        return;
-      }
-
-      users.push({ name, email, password: pass });
-      saveUsers(users);
-
-      // Lưu thông tin đăng nhập để sang trang chat
-      localStorage.setItem('chat_username', name);
-      localStorage.setItem('chat_email', email);
-      if (avatarDataUrl) {
-        localStorage.setItem('chat_avatar', avatarDataUrl);
-      }
-
-      btnJoin.textContent = 'Đang tạo tài khoản...';
-      btnJoin.disabled = true;
-      setTimeout(() => { window.location.href = '/'; }, 300);
-
-    } else {
-      // LOGIN
-      const user = users.find(u => u.email === email);
-      if (!user) {
-        alert('Không tìm thấy tài khoản với email này. Hãy đăng ký trước.');
-        return;
-      }
-      if (user.password !== pass) {
-        alert('Mật khẩu không đúng!');
-        return;
-      }
-
-      localStorage.setItem('chat_username', user.name || name || email);
-      localStorage.setItem('chat_email', user.email);
-      if (avatarDataUrl) {
-        localStorage.setItem('chat_avatar', avatarDataUrl);
-      }
-
-      btnJoin.textContent = 'Đang đăng nhập...';
-      btnJoin.disabled = true;
-      setTimeout(() => { window.location.href = '/'; }, 300);
-    }
-  }
-
-  // Gán lại event cho nút Join + phím Enter
-  btnJoin.addEventListener('click', (e) => {
-    e.preventDefault();
-    handleAuthSubmit();
-  });
-
-  [inputName, emailInput, passInput, passConfirmInput].forEach(el => {
-    if (!el) return;
-    el.addEventListener('keypress', (e) => {
-      if (e.key === 'Enter') {
-        e.preventDefault();
-        handleAuthSubmit();
-      }
-    });
-  });
-</script>
-
-<script type="module">
- import { initializeApp } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-app.js";
-  import { getAnalytics } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-analytics.js";
-  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.1/firebase-app.js";
-  import {
-    getAuth,
-    onAuthStateChanged,
-    createUserWithEmailAndPassword,
-    signInWithEmailAndPassword,
-    updateProfile,
-    signOut
-  } from "https://www.gstatic.com/firebasejs/10.13.1/firebase-auth.js";
-
-  // ===== 1. CẤU HÌNH FIREBASE (DÁN CỦA BẠN VÀO ĐÂY) =====
-  const firebaseConfig = {
-    apiKey: "AIzaSyDRMgkgMUxdDn0LLduG0_kZ4AdvmM3ZVg4",
-    authDomain: "login-43c99.firebaseapp.com",
-    projectId: "login-43c99",
-    storageBucket: "login-43c99.firebasestorage.app",
-    messagingSenderId: "559138671436",
-    appId: "1:559138671436:web:32388b3a289887bd641de9",
-    measurementId: "G-KFY7VSR74L"
-  };
-
-  const app = initializeApp(firebaseConfig);
-  const auth = getAuth(app);
-
-  // ===== 2. LẤY CÁC PHẦN TỬ TRÊN FORM =====
-  // Clone btnJoin để xoá mọi listener cũ (localStorage login) nhưng không đụng code cũ
-  const oldBtn = document.getElementById('btnJoin');
-  const btnJoin = oldBtn.cloneNode(true);
-  oldBtn.parentNode.replaceChild(btnJoin, oldBtn);
-
-  const inputName  = document.getElementById('loginName');
-  const emailInput = document.getElementById('loginEmail');
-  const passInput  = document.getElementById('loginPassword');
-  const pass2Input = document.getElementById('registerPasswordConfirm');
-
-  const btnToggleAuth = document.getElementById('btnToggleAuth');
-  const authHint = document.getElementById('authHint');
-  const titleEl = document.querySelector('.login-box h2');
-
-  const avatarInput   = document.getElementById('avatarInput');
-  const avatarPreview = document.getElementById('avatarPreview');
-  const btnChooseAvatar = document.getElementById('btnChooseAvatar');
-  const btnClearAvatar  = document.getElementById('btnClearAvatar');
-
-  let authMode = 'login';           // 'login' | 'register'
-  let avatarDataUrl = null;         // avatar người dùng chọn (nếu có)
-
-  // ===== 3. HÀM ĐỔI CHẾ ĐỘ LOGIN / REGISTER =====
-  function setAuthMode(mode) {
-    authMode = mode;
-    if (mode === 'login') {
-      titleEl.textContent = 'Đăng nhập Chat';
-      btnJoin.textContent = 'Đăng nhập';
-      authHint.textContent = 'Chưa có tài khoản?';
-      btnToggleAuth.textContent = 'Đăng ký';
-    } else {
-      titleEl.textContent = 'Đăng ký tài khoản mới';
-      btnJoin.textContent = 'Đăng ký & vào chat';
-      authHint.textContent = 'Đã có tài khoản?';
-      btnToggleAuth.textContent = 'Đăng nhập';
-    }
-    pass2Input.value = '';
-  }
-
-  setAuthMode('login');
-
-  btnToggleAuth.addEventListener('click', () => {
-    setAuthMode(authMode === 'login' ? 'register' : 'login');
-  });
-
-  // ===== 4. XỬ LÝ AVATAR (giữ code cũ, chỉ bắt thêm dữ liệu) =====
-  if (btnChooseAvatar && avatarInput) {
-    btnChooseAvatar.addEventListener('click', () => avatarInput.click());
-    avatarInput.addEventListener('change', (e) => {
-      const file = e.target.files[0];
-      if (!file) return;
-      const reader = new FileReader();
-      reader.onload = (ev) => {
-        avatarDataUrl = ev.target.result;
-        avatarPreview.style.backgroundImage = `url(${ev.target.result})`;
-        avatarPreview.textContent = '';
-        avatarPreview.style.borderStyle = 'solid';
-      };
-      reader.readAsDataURL(file);
-    });
-  }
-
-  if (btnClearAvatar) {
-    btnClearAvatar.addEventListener('click', () => {
-      avatarDataUrl = null;
-      avatarPreview.style.backgroundImage = 'none';
-      avatarPreview.textContent = '+';
-      avatarPreview.style.borderStyle = 'dashed';
-      localStorage.removeItem('chat_avatar');
-    });
-  }
-
-  // ===== 5. ĐĂNG NHẬP / ĐĂNG KÝ VỚI FIREBASE AUTH =====
-  async function handleAuthSubmit() {
-    const displayName = inputName.value.trim();
-    const email = emailInput.value.trim();
-    const pass = passInput.value;
-    const pass2 = pass2Input.value;
-
-    if (!email) {
-      alert('Vui lòng nhập email!');
-      emailInput.focus();
-      return;
-    }
-    if (!pass) {
-      alert('Vui lòng nhập mật khẩu!');
-      passInput.focus();
-      return;
-    }
-
-    try {
-      if (authMode === 'register') {
-        if (!displayName) {
-          alert('Vui lòng nhập tên hiển thị!');
-          inputName.focus();
-          return;
-        }
-        if (pass.length < 6) {
-          alert('Mật khẩu phải ít nhất 6 ký tự!');
-          passInput.focus();
-          return;
-        }
-        if (pass !== pass2) {
-          alert('Xác nhận mật khẩu không khớp!');
-          pass2Input.focus();
-          return;
-        }
-
-        // Tạo user mới
-        const cred = await createUserWithEmailAndPassword(auth, email, pass);
-        if (displayName) {
-          await updateProfile(cred.user, { displayName });
-        }
-      } else {
-        // Đăng nhập
-        await signInWithEmailAndPassword(auth, email, pass);
-      }
-
-      const user = auth.currentUser;
-      if (!user) throw new Error('Không lấy được thông tin người dùng.');
-
-      const nameToUse = user.displayName || displayName || user.email;
-
-      // LƯU RA localStorage để client.js dùng
-      localStorage.setItem('chat_username', nameToUse);
-      localStorage.setItem('chat_email', user.email);
-      if (user.photoURL) {
-        localStorage.setItem('chat_avatar', user.photoURL);
-      } else if (avatarDataUrl) {
-        localStorage.setItem('chat_avatar', avatarDataUrl);
-      }
-
-      btnJoin.textContent = authMode === 'login' ? 'Đang đăng nhập...' : 'Đang đăng ký...';
-      btnJoin.disabled = true;
-
-      // Chuyển sang trang chat
-      setTimeout(() => {
-        window.location.href = '/';
-      }, 300);
-
-    } catch (err) {
-      console.error(err);
-      alert('Lỗi xác thực Firebase: ' + (err.message || err));
-    }
-  }
-
-  btnJoin.addEventListener('click', (e) => {
-    e.preventDefault();
-    handleAuthSubmit();
-  });
-
-  [inputName, emailInput, passInput, pass2Input].forEach(el => {
-    if (!el) return;
-    el.addEventListener('keypress', (e) => {
-      if (e.key === 'Enter') {
-        e.preventDefault();
-        handleAuthSubmit();
-      }
-    });
-  });
-
-  // ===== 6. NẾU ĐÃ ĐĂNG NHẬP RỒI THÌ VÀO THẲNG CHAT =====
-  onAuthStateChanged(auth, (user) => {
-    if (user) {
-      const nameToUse = user.displayName || user.email;
-      localStorage.setItem('chat_username', nameToUse);
-      localStorage.setItem('chat_email', user.email);
-      if (user.photoURL) localStorage.setItem('chat_avatar', user.photoURL);
-      // Nếu đang ở login page -> chuyển qua /
-      if (location.pathname.endsWith('login.html')) {
-        window.location.href = '/';
-      }
-    }
-  });
-</script>
-
+</head>
 
 <body>
   <div class="login-container">
     <div class="login-box">
-
       <!-- CHỌN AVATAR -->
       <div class="avatar-select">
         <div id="avatarPreview" class="avatar-preview">+</div>
         <div class="avatar-actions">
           <button type="button" id="btnChooseAvatar">Chọn avatar (tuỳ chọn)</button>
           <button type="button" id="btnClearAvatar">Bỏ avatar</button>
-          <input type="file" id="avatarInput" accept="image/*" style="display:none">
-
+          <input type="file" id="avatarInput" accept="image/*" style="display:none" />
         </div>
       </div>
+
       <h2>Tham gia Chat</h2>
-      
+
       <div class="input-group">
         <input type="text" id="loginName" placeholder="Nhập tên của bạn..." autocomplete="off" autofocus />
         <svg class="input-icon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
       </div>
-      
+
       <!-- EMAIL -->
-      <div class="input-group">
-        <input type="email" id="loginEmail" placeholder="Nhập email của bạn..." autocomplete="off" />
-        <svg class="input-icon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2" ry="2"></rect><polyline points="22,6 12,13 2,6"></polyline></svg>
-      </div>
-
-      <!-- MẬT KHẨU -->
-      <div class="input-group">
-        <input type="password" id="loginPassword" placeholder="Mật khẩu..." autocomplete="off" />
-        <svg class="input-icon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
-      </div>
-       <!-- XÁC NHẬN MẬT KHẨU (DÙNG KHI ĐĂNG KÝ) -->
-      <div class="input-group">
-        <input type="password" id="registerPasswordConfirm" placeholder="Xác nhận mật khẩu (khi đăng ký)" autocomplete="off" />
-        <svg class="input-icon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11V7a5 5 0 0 1 10 0v4"></path><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect></svg>
-      </div>
-      <button id="btnJoin">Vào phòng ngay</button>
-
-       <!-- nút chế độ khách (join trực tiếp bằng tên) -->
-      <button id="btnGuest" style="margin-top:8px;background:linear-gradient(90deg,#42a5f5,#1e88e5);color:#fff;border:none;padding:12px;border-radius:12px;cursor:pointer;">
-        vào nhanh (Guest)
-      </button>
-
-      <!-- Swicth đăng ký -->
-       <div class="auth-switch">
-        <span id="authHint">Chưa có tài khoản?</span>
-        <button type="button" id="btnToggleAuth">Đăng ký</button>
-      </div>
-       <div class="login-footer">
-        © Socket Chat App nhóm 8
-      </div>
-    </div>
-  </div>
- <!-- CHỈ 1 SCRIPT DUY NHẤT -->
-  <script>
-    // Lấy các phần tử
-    const btnJoin = document.getElementById('btnJoin');
-    const inputName = document.getElementById('loginName');
-
-    const avatarInput = document.getElementById('avatarInput');
-    const avatarPreview = document.getElementById('avatarPreview');
-    const btnChooseAvatar = document.getElementById('btnChooseAvatar');
-    const btnClearAvatar = document.getElementById('btnClearAvatar');
-     let selectedAvatarDataUrl = null;
-      // Xử lý đăng nhập
-    function handleLogin() {
-      const name = inputName.value.trim();
-      /* ==== CHỌN AVATAR ==== */
-    chooseAvatarBtn.onclick = () => avatarInput.click();
-     // Lưu tên
-      localStorage.setItem('chat_username', name);
-       // Lưu avatar (nếu có)
-      if (selectedAvatarDataUrl) {
-        localStorage.setItem('chat_avatar', selectedAvatarDataUrl);
-      } else {
-        localStorage.removeItem('chat_avatar');
-      }
-        <!-- EMAIL -->
       <div class="input-group">
         <input type="email" id="loginEmail" placeholder="Nhập email của bạn..." autocomplete="off" />
         <svg class="input-icon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2" ry="2"></rect><polyline points="22,6 12,13 2,6"></polyline></svg>
@@ -719,114 +262,264 @@
         <svg class="input-icon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11V7a5 5 0 0 1 10 0v4"></path><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect></svg>
       </div>
 
-       // Chuyển trang
-      btnJoin.innerHTML = 'Đang kết nối...';
-      btnJoin.style.opacity = '0.8';
-      setTimeout(() => {
-        window.location.href = '/';
-      }, 300);
-    }
-    // Sự kiện login
-    btnJoin.addEventListener('click', handleLogin);
-    inputName.addEventListener('keypress', (e) => {
-      if (e.key === 'Enter') handleLogin();
-    });
-    inputName.addEventListener('input', () => {
-      inputName.style.borderColor = '#eee';
-    });
+      <button id="btnJoin">Vào phòng ngay</button>
 
-    // ====== CHỌN AVATAR ======
-    btnChooseAvatar.addEventListener('click', () => {
-      avatarInput.click();
-    });
-     avatarInput.addEventListener('change', (e) => {
-      const file = e.target.files[0];
-      if (!file) return;
+      <!-- nút chế độ khách (join trực tiếp bằng tên) -->
+      <button id="btnGuest">
+        vào nhanh (Guest)
+      </button>
 
-      const reader = new FileReader();
-      reader.onload = (ev) => {
-        selectedAvatarDataUrl = ev.target.result;
-        avatarPreview.style.backgroundImage = `url(${ev.target.result})`;
-        avatarPreview.textContent = '';
-        avatarPreview.style.borderStyle = 'solid';
-      };
-      reader.readAsDataURL(file);
-    });
-     btnClearAvatar.addEventListener('click', () => {
-      selectedAvatarDataUrl = null;
-      avatarPreview.style.backgroundImage = 'none';
-      avatarPreview.textContent = '+';
-      avatarPreview.style.borderStyle = 'dashed';
-      avatarInput.value = '';
-    });
-     </script>
+      <!-- Swicth đăng ký -->
+      <div class="auth-switch">
+        <span id="authHint">Chưa có tài khoản?</span>
+        <button type="button" id="btnToggleAuth">Đăng ký</button>
+      </div>
 
-<script type="module">
-  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.1/firebase-app.js";
-  import {
-    getAuth,
-    onAuthStateChanged,
-    createUserWithEmailAndPassword,
-    signInWithEmailAndPassword,
-    updateProfile,
-    signOut
-  } from "https://www.gstatic.com/firebasejs/10.13.1/firebase-auth.js";
+      <div class="login-footer">
+        © Socket Chat App nhóm 8
+      </div>
+    </div>
+  </div>
 
-  // ===== 1. CẤU HÌNH FIREBASE (DÁN CỦA BẠN VÀO ĐÂY) =====
-  const firebaseConfig = {
-    apiKey: "AIzaSyDRMgkgMUxdDn0LLduG0_kZ4AdvmM3ZVg4",
-    authDomain: "login-43c99.firebaseapp.com",
-    projectId: "login-43c99",
-    storageBucket: "login-43c99.firebasestorage.app",
-    messagingSenderId: "559138671436",
-    appId: "1:559138671436:web:2b02eba239bd0dee641de9",
-    measurementId: "G-FFKWSZQJLN"
-  };
+  <!-- SCRIPT DUY NHẤT CHO FIREBASE + UI -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.1/firebase-app.js";
+    import {
+      getAuth,
+      onAuthStateChanged,
+      createUserWithEmailAndPassword,
+      signInWithEmailAndPassword,
+      updateProfile,
+      signOut
+    } from "https://www.gstatic.com/firebasejs/10.13.1/firebase-auth.js";
 
-  
-  const app = initializeApp(firebaseConfig);
-  const analytics = getAnalytics(app);
-</script>
+    // ===== CẤU HÌNH FIREBASE (DÙNG PROJECT CỦA BẠN) =====
+    const firebaseConfig = {
+      apiKey: "AIzaSyDRMgkgMUxdDn0LLduG0_kZ4AdvmM3ZVg4",
+      authDomain: "login-43c99.firebaseapp.com",
+      projectId: "login-43c99",
+      storageBucket: "login-43c99.firebasestorage.app",
+      messagingSenderId: "559138671436",
+      appId: "1:559138671436:web:32388b3a289887bd641de9",
+      measurementId: "G-KFY7VSR74L"
+    };
 
-  <script>
-    // thêm xử lý cho nút Guest
-    const btnGuest = document.getElementById('btnGuest');
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
 
-    function handleGuestSubmit() {
-      // nhập tên tạm thời
-      let name = (document.getElementById('loginName') && document.getElementById('loginName').value.trim()) || '';
-      if (!name) {
-        name = prompt('Bạn muốn hiển thị tên gì khi vào chat (khách)?') || ('Guest' + Math.floor(Math.random() * 10000));
-      }
-      // xác nhận tạm thời
-      const ok = confirm(`Bạn sẽ vào với tên "${name}" ở chế độ KHÁCH.\nTài khoản này là tạm thời và sẽ không có mật khẩu.\nTiếp tục?`);
-      if (!ok) return;
+    // ===== LẤY PHẦN TỬ DOM =====
+    const inputName  = document.getElementById('loginName');
+    const emailInput = document.getElementById('loginEmail');
+    const passInput  = document.getElementById('loginPassword');
+    const pass2Input = document.getElementById('registerPasswordConfirm');
 
-      // lưu tạm vào localStorage (chế độ guest)
-      localStorage.setItem('chat_username', name);
-      localStorage.setItem('chat_type', 'guest');
+    const btnJoin   = document.getElementById('btnJoin');
+    const btnGuest  = document.getElementById('btnGuest');
+    const btnToggleAuth = document.getElementById('btnToggleAuth');
+    const authHint  = document.getElementById('authHint');
+    const titleEl   = document.querySelector('.login-box h2');
 
-      // nếu user đã chọn avatar trên form thì lưu avatar tạm thời
-      if (typeof selectedAvatarDataUrl !== 'undefined' && selectedAvatarDataUrl) {
-        localStorage.setItem('chat_avatar', selectedAvatarDataUrl);
+    const avatarInput   = document.getElementById('avatarInput');
+    const avatarPreview = document.getElementById('avatarPreview');
+    const btnChooseAvatar = document.getElementById('btnChooseAvatar');
+    const btnClearAvatar  = document.getElementById('btnClearAvatar');
+
+    let authMode = 'login';           // 'login' | 'register'
+    let selectedAvatarDataUrl = null; // avatar đã chọn
+
+    // ===== ĐỔI CHẾ ĐỘ LOGIN / REGISTER =====
+    function setAuthMode(mode) {
+      authMode = mode;
+      if (mode === 'login') {
+        titleEl.textContent = 'Đăng nhập Chat';
+        btnJoin.textContent = 'Đăng nhập';
+        authHint.textContent = 'Chưa có tài khoản?';
+        btnToggleAuth.textContent = 'Đăng ký';
+        pass2Input.style.display = 'block'; // vẫn để, nhưng chỉ thông báo dùng khi đăng ký
       } else {
-        // KHÔNG có avatar khi vào nhanh
-        localStorage.removeItem('chat_avatar');
+        titleEl.textContent = 'Đăng ký tài khoản mới';
+        btnJoin.textContent = 'Đăng ký & vào chat';
+        authHint.textContent = 'Đã có tài khoản?';
+        btnToggleAuth.textContent = 'Đăng nhập';
       }
-
-      // chuyển sang trang chat
-      btnGuest.textContent = 'Đang vào...';
-      btnGuest.disabled = true;
-      setTimeout(() => { window.location.href = '/'; }, 200);
+      pass2Input.value = '';
     }
 
-    if (btnGuest) {
-      btnGuest.addEventListener('click', (e) => {
-        e.preventDefault();
-        handleGuestSubmit();
+    setAuthMode('login');
+
+    btnToggleAuth.addEventListener('click', () => {
+      setAuthMode(authMode === 'login' ? 'register' : 'login');
+    });
+
+    // ===== XỬ LÝ AVATAR =====
+    if (btnChooseAvatar && avatarInput) {
+      btnChooseAvatar.addEventListener('click', () => avatarInput.click());
+      avatarInput.addEventListener('change', (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = (ev) => {
+          selectedAvatarDataUrl = ev.target.result;
+          avatarPreview.style.backgroundImage = `url(${ev.target.result})`;
+          avatarPreview.textContent = '';
+          avatarPreview.style.borderStyle = 'solid';
+        };
+        reader.readAsDataURL(file);
       });
     }
 
+    if (btnClearAvatar) {
+      btnClearAvatar.addEventListener('click', () => {
+        selectedAvatarDataUrl = null;
+        avatarPreview.style.backgroundImage = 'none';
+        avatarPreview.textContent = '+';
+        avatarPreview.style.borderStyle = 'dashed';
+        if (avatarInput) avatarInput.value = '';
+        localStorage.removeItem('chat_avatar');
+      });
+    }
+
+    // ===== ĐĂNG NHẬP / ĐĂNG KÝ VỚI FIREBASE =====
+    async function handleAuthSubmit() {
+      const displayName = inputName.value.trim();
+      const email = emailInput.value.trim();
+      const pass = passInput.value;
+      const pass2 = pass2Input.value;
+
+      if (!email) {
+        alert('Vui lòng nhập email!');
+        emailInput.focus();
+        return;
+      }
+      if (!pass) {
+        alert('Vui lòng nhập mật khẩu!');
+        passInput.focus();
+        return;
+      }
+
+      try {
+        btnJoin.disabled = true;
+        btnJoin.textContent = authMode === 'login' ? 'Đang đăng nhập...' : 'Đang đăng ký...';
+
+        if (authMode === 'register') {
+          if (!displayName) {
+            alert('Vui lòng nhập tên hiển thị!');
+            inputName.focus();
+            btnJoin.disabled = false;
+            btnJoin.textContent = 'Đăng ký & vào chat';
+            return;
+          }
+          if (pass.length < 6) {
+            alert('Mật khẩu phải ít nhất 6 ký tự!');
+            passInput.focus();
+            btnJoin.disabled = false;
+            btnJoin.textContent = 'Đăng ký & vào chat';
+            return;
+          }
+          if (pass !== pass2) {
+            alert('Xác nhận mật khẩu không khớp!');
+            pass2Input.focus();
+            btnJoin.disabled = false;
+            btnJoin.textContent = 'Đăng ký & vào chat';
+            return;
+          }
+
+          const cred = await createUserWithEmailAndPassword(auth, email, pass);
+          if (displayName) {
+            await updateProfile(cred.user, { displayName });
+          }
+        } else {
+          await signInWithEmailAndPassword(auth, email, pass);
+        }
+
+        const user = auth.currentUser;
+        if (!user) throw new Error('Không lấy được thông tin người dùng.');
+
+        const nameToUse = user.displayName || displayName || user.email;
+
+        // Lưu sang localStorage cho trang chat
+        localStorage.setItem('chat_username', nameToUse);
+        localStorage.setItem('chat_email', user.email);
+        if (user.photoURL) {
+          localStorage.setItem('chat_avatar', user.photoURL);
+        } else if (selectedAvatarDataUrl) {
+          localStorage.setItem('chat_avatar', selectedAvatarDataUrl);
+        }
+
+        // Chuyển sang trang chat
+        window.location.href = '/';
+      } catch (err) {
+        console.error(err);
+        alert('Lỗi xác thực Firebase: ' + (err.message || err));
+        btnJoin.disabled = false;
+        btnJoin.textContent = authMode === 'login' ? 'Đăng nhập' : 'Đăng ký & vào chat';
+      }
+    }
+
+    btnJoin.addEventListener('click', (e) => {
+      e.preventDefault();
+      handleAuthSubmit();
+    });
+
+    [inputName, emailInput, passInput, pass2Input].forEach(el => {
+      if (!el) return;
+      el.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          handleAuthSubmit();
+        }
+      });
+    });
+
+    // ===== CHẾ ĐỘ GUEST =====
+    if (btnGuest) {
+      btnGuest.addEventListener('click', (e) => {
+        e.preventDefault();
+        let name = (inputName && inputName.value.trim()) || '';
+        if (!name) {
+          name = prompt('Bạn muốn hiển thị tên gì khi vào chat (khách)?') || ('Guest' + Math.floor(Math.random() * 10000));
+        }
+        const ok = confirm(
+          `Bạn sẽ vào với tên "${name}" ở chế độ KHÁCH.\n` +
+          `Tài khoản này là tạm thời và sẽ không có mật khẩu.\nTiếp tục?`
+        );
+        if (!ok) return;
+
+        signOut(auth).catch(console.error);
+
+        localStorage.setItem('chat_username', name);
+        localStorage.setItem('chat_type', 'guest');
+        
+        // 🔥 Quan trọng: Guest thì xoá email cũ đi
+        localStorage.removeItem('chat_email');
+
+        if (selectedAvatarDataUrl) {
+          localStorage.setItem('chat_avatar', selectedAvatarDataUrl);
+        } else {
+          localStorage.removeItem('chat_avatar');
+        }
+
+        btnGuest.textContent = 'Đang vào...';
+        btnGuest.disabled = true;
+        setTimeout(() => { window.location.href = '/'; }, 200);
+      });
+    }
+
+    // ===== NẾU ĐÃ ĐĂNG NHẬP RỒI THÌ VÀO THẲNG CHAT =====
+    onAuthStateChanged(auth, (user) => {
+      if (user) {
+        const nameToUse = user.displayName || user.email;
+        localStorage.setItem('chat_username', nameToUse);
+        localStorage.setItem('chat_email', user.email);
+        if (user.photoURL) {
+          localStorage.setItem('chat_avatar', user.photoURL);
+        }
+        // Nếu đang ở login page -> chuyển qua /
+        if (location.pathname.endsWith('login.html') || location.pathname === '/login') {
+          window.location.href = '/';
+        }
+      }
+    });
   </script>
 </body>
 </html>

@@ -381,6 +381,18 @@ io.on("connection", (socket) => {
     }
   });
 
+  // ====== MỜI GỌI CALL PHÒNG (THÔNG BÁO CHO CẢ ROOM) ======
+  socket.on("room_call_invite", ({ room, isVideo }) => {
+    const fromUser = socket.data.username;
+    if (!fromUser || !room) return;
+
+    socket.to(room).emit("room_call_incoming", {
+      room,
+      from: fromUser,
+      isVideo: !!isVideo,
+    });
+  });
+
   // ====== SIGNALING CHO CALL (WEBRTC) ======
   socket.on("call_user", ({ to, offer, isVideo }) => {
     const fromUser = socket.data.username;

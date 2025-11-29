@@ -1,4 +1,13 @@
-const API_BASE = "https://chat-socket-g8.onrender.com";
+const DEFAULT_API_BASE = "https://chat-socket-g8.onrender.com";
+const urlParams = new URLSearchParams(window.location.search);
+const apiBaseFromQuery = urlParams.get('api');
+const storedApiBase = localStorage.getItem('chat_api_base');
+const API_BASE = (apiBaseFromQuery || storedApiBase || DEFAULT_API_BASE).replace(/\/$/, '');
+
+if (apiBaseFromQuery) {
+  localStorage.setItem('chat_api_base', API_BASE);
+}
+
 const socket = io(API_BASE, {
   transports: ["websocket", "polling"]
 });
@@ -288,9 +297,14 @@ async function setTargetDM(u) {
   messages.innerHTML = '';
 
   try {
-    const res = await fetch(
-      `${API_BASE}/api/dm/${encodeURIComponent(username)}/${encodeURIComponent(u)}?limit=50`
-    );
+    const url = `${API_BASE}/api/dm/${encodeURIComponent(username)}/${encodeURIComponent(u)}?limit=50`;
+    const res = await fetch(url);
+
+    if (!res.ok) {
+      console.error('DM API lỗi status', res.status, 'url =', url);
+      return;
+    }
+
     const data = await res.json();
     if (Array.isArray(data)) data.forEach(m => appendMessage(m));
   } catch (e) {
@@ -997,6 +1011,16 @@ function handleCallButton(isVideo) {
     startDirectCall(isVideo); // gọi 1-1
   } else {
     if (!groupCallActive) {
+      if (!currentRoom) {
+        alert('Bạn cần đang ở trong 1 phòng để gọi nhóm.');
+        return;
+      }
+
+      socket.emit('room_call_invite', {
+        room: currentRoom,
+        isVideo: !!isVideo,
+      });
+
       joinGroupCall(isVideo);
     } else {
       const ok = confirm('Bạn muốn rời cuộc gọi phòng hiện tại?');
@@ -1118,6 +1142,21 @@ socket.on('call_ended', ({ from }) => {
   if (!currentCallPeer || from !== currentCallPeer) return;
   alert('Cuộc gọi đã kết thúc.');
   resetCallState(true);
+});
+
+// Có người bấm gọi nhóm trong phòng
+socket.on('room_call_incoming', ({ room, from, isVideo }) => {
+  if (room !== currentRoom) return;
+
+  // Nếu đang bận call 1-1 hoặc đang ở trong group call thì bỏ qua
+  if (groupCallActive || currentCallStatus !== 'idle') return;
+
+  const typeText = isVideo ? 'video' : 'thoại';
+  const ok = confirm(`${from} đang gọi nhóm trong phòng "${room}". Tham gia cuộc gọi ${typeText}?`);
+
+  if (!ok) return;
+
+  joinGroupCall(isVideo);
 });
 
 // ==== ROOM GROUP CALL (mesh) ====

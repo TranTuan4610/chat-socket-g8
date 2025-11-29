@@ -276,7 +276,19 @@ export function createSocket(io) {
       ack && ack({ ok: true });
     });
 
-    // --- 11. WEBRTC SIGNALING: CALL 1–1 (VOICE / VIDEO) ---
+    // --- 11. MỜI GỌI CALL PHÒNG (THÔNG BÁO CHO CẢ ROOM) ---
+    socket.on('room_call_invite', ({ room, isVideo }) => {
+      const fromUser = socketToUser.get(socket.id);
+      if (!fromUser || !room) return;
+
+      socket.to(room).emit('room_call_incoming', {
+        room,
+        from: fromUser,
+        isVideo: !!isVideo
+      });
+    });
+
+    // --- 12. WEBRTC SIGNALING: CALL 1–1 (VOICE / VIDEO) ---
     // Gọi đi
     socket.on('call_user', ({ to, offer, isVideo }) => {
       const from = socketToUser.get(socket.id);

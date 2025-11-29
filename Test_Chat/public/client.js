@@ -195,9 +195,31 @@ socket.on('chat_message', (payload) => {
 });
 
 socket.on('private_message', (payload) => {
-  appendMessage(payload, payload.sender === username ? 'me' : '');
-  if (payload.sender !== username && payload._id) {
-    socket.emit('message_read', { messageId: payload._id });
+  const myName = username;
+  const sender = payload.sender;
+  const receiver = payload.to;
+
+  const otherUser = sender === myName ? receiver : sender;
+
+  // Mình là người gửi: chỉ hiển thị khi đang mở đúng DM
+  if (sender === myName) {
+    if (dmTarget === otherUser) {
+      appendMessage(payload, 'me');
+    }
+    return;
+  }
+
+  // Mình là người nhận
+  if (dmTarget === otherUser) {
+    appendMessage(payload, '');
+    if (payload._id) {
+      socket.emit('message_read', { messageId: payload._id });
+    }
+  } else {
+    appendMessage({
+      content: `Bạn có tin nhắn riêng mới từ ${sender}. Hãy bấm vào tên "${sender}" trong danh sách Online để xem.`,
+      system: true
+    });
   }
 });
 

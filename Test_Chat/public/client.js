@@ -40,6 +40,7 @@ let remoteAudioEl = null;
 let currentCallStatus = 'idle';
 let incomingOffer = null;
 let callTimeoutId = null;
+let pendingRoomInvite = null;    // lưu lời mời call phòng đang chờ
 
 // Group Call (call cả phòng) - mesh
 let groupCallActive = false;
@@ -1043,6 +1044,9 @@ if (btnAcceptCall) {
   btnAcceptCall.addEventListener('click', () => {
     if (currentCallStatus === 'ringing') {
       acceptIncomingCall();
+    } else if (pendingRoomInvite && pendingRoomInvite.type === 'room') {
+      joinGroupCall(pendingRoomInvite.isVideo);
+      pendingRoomInvite = null;
     }
   });
 }
@@ -1052,6 +1056,13 @@ if (btnRejectCall) {
     // Call nhóm
     if (groupCallActive) {
       leaveGroupCall();
+      return;
+    }
+
+    // Lời mời call phòng đang chờ
+    if (pendingRoomInvite && pendingRoomInvite.type === 'room') {
+      pendingRoomInvite = null;
+      closeCallOverlay();
       return;
     }
 
@@ -1148,15 +1159,19 @@ socket.on('call_ended', ({ from }) => {
 socket.on('room_call_incoming', ({ room, from, isVideo }) => {
   if (room !== currentRoom) return;
 
-  // Nếu đang bận call 1-1 hoặc đang ở trong group call thì bỏ qua
+  // Nếu đang bận call 1-1 hoặc đã ở trong group call thì bỏ qua
   if (groupCallActive || currentCallStatus !== 'idle') return;
 
-  const typeText = isVideo ? 'video' : 'thoại';
-  const ok = confirm(`${from} đang gọi nhóm trong phòng "${room}". Tham gia cuộc gọi ${typeText}?`);
+  pendingRoomInvite = { room, from, isVideo, type: 'room' };
 
-  if (!ok) return;
+  openCallOverlay(`Phòng ${room}`, !!isVideo, 'incoming');
 
-  joinGroupCall(isVideo);
+  if (callNameEl) {
+    callNameEl.textContent = `${from} đang gọi nhóm trong phòng ${room}`;
+  }
+  if (callTypeEl) {
+    callTypeEl.textContent = isVideo ? 'Video call nhóm' : 'Voice call nhóm';
+  }
 });
 
 // ==== ROOM GROUP CALL (mesh) ====

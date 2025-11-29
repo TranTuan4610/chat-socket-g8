@@ -152,7 +152,7 @@ body.dark .profile-label {
 .room-create-box button { padding: 0 10px; border: none; background: #eee; border-radius: 8px; cursor: pointer; }
 .room-create-box button:hover { background: #667eea; color: white; }
 
-.users-list li { padding: 8px; display: flex; align-items: center; gap: 10px; cursor: pointer; font-size: 0.9rem; }
+.users-list li { padding: 8px; display: flex; align-items: center; justify-content: space-between; gap: 10px; cursor: pointer; font-size: 0.9rem; }
 .users-list li:hover { color: #667eea; background: #f9f9f9; border-radius: 8px;}
 .users-list li::before { content: ''; width: 8px; height: 8px; background: #2ccf6d; border-radius: 50%; }
 .users-list li.active {
@@ -162,6 +162,23 @@ body.dark .profile-label {
 
 body.dark .users-list li.active {
   background: #4b52e3;
+}
+
+.dm-badge {
+  min-width: 18px;
+  height: 18px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: #ff4757;
+  color: #fff;
+  font-size: 0.75rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+body.dark .dm-badge {
+  background: #ff6b81;
 }
 
 /* --- MAIN CHAT AREA (CỘT PHẢI) --- */

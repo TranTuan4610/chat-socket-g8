@@ -28,6 +28,7 @@ let username = '';
 let currentRoom = 'general';
 let dmTarget = '';
 let typingTimeout = null;
+let dmUnread = {}; // username -> số tin nhắn riêng chưa đọc
 
 // WebRTC / Call
 let pc = null;
@@ -199,25 +200,33 @@ socket.on('private_message', (payload) => {
   const sender = payload.sender;
   const receiver = payload.to;
 
+  // "người còn lại" trong cuộc chat riêng này
   const otherUser = sender === myName ? receiver : sender;
 
-  // Mình là người gửi: chỉ hiển thị khi đang mở đúng DM
+  // ===== 1. MÌNH LÀ NGƯỜI GỬI =====
   if (sender === myName) {
+    // Chỉ hiển thị nếu đang mở đúng DM
     if (dmTarget === otherUser) {
       appendMessage(payload, 'me');
     }
     return;
   }
 
-  // Mình là người nhận
+  // ===== 2. MÌNH LÀ NGƯỜI NHẬN =====
   if (dmTarget === otherUser) {
+    // Đang mở đúng DM -> hiển thị ngay
     appendMessage(payload, '');
     if (payload._id) {
       socket.emit('message_read', { messageId: payload._id });
     }
   } else {
+    // Đang ở room / DM khác -> tăng số chưa đọc + cập nhật badge
+    dmUnread[otherUser] = (dmUnread[otherUser] || 0) + 1;
+    updateDmBadge(otherUser);
+
+    // (tuỳ thích) có thể thêm 1 dòng system thông báo
     appendMessage({
-      content: `Bạn có tin nhắn riêng mới từ ${sender}. Hãy bấm vào tên "${sender}" trong danh sách Online để xem.`,
+      content: `Bạn có tin nhắn riêng mới từ ${sender}.`,
       system: true
     });
   }
@@ -307,6 +316,10 @@ function setTargetRoom(r) {
 async function setTargetDM(u) {
   dmTarget = u;
   currentRoom = ''; // Không ở room nào khi đang xem DM
+
+  // reset số tin chưa đọc với user này
+  dmUnread[u] = 0;
+  updateDmBadge(u);
   if (target) target.textContent = `DM: ${u}`;
 
   // tô active user đang chat
@@ -349,12 +362,39 @@ function addRoom(name) {
 function refreshUsers(list) {
   if (!usersBox) return;
   usersBox.innerHTML = '';
-  list.filter(u => u !== username).forEach(u => {
-    const li = document.createElement('li');
-    li.textContent = u;
-    li.onclick = () => setTargetDM(u);
-    usersBox.appendChild(li);
-  });
+  list
+    .filter(u => u !== username)
+    .forEach(u => {
+      const li = document.createElement('li');
+      li.dataset.user = u;
+      li.onclick = () => setTargetDM(u);
+
+      const count = dmUnread[u] || 0;
+
+      li.innerHTML = `
+        <span class="user-name-text">${u}</span>
+        <span class="dm-badge" style="${count ? '' : 'display:none;'}">
+          ${count}
+        </span>
+      `;
+
+      usersBox.appendChild(li);
+    });
+}
+
+function updateDmBadge(user) {
+  if (!usersBox) return;
+  const li = Array.from(usersBox.children).find(
+    el => el.dataset.user === user
+  );
+  if (!li) return;
+
+  const badge = li.querySelector('.dm-badge');
+  if (!badge) return;
+
+  const count = dmUnread[user] || 0;
+  badge.textContent = count;
+  badge.style.display = count ? 'inline-flex' : 'none';
 }
 
 async function loadRoomHistory(room) {

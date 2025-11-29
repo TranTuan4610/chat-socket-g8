@@ -114,7 +114,7 @@ let startHeight = 0;
 
 if (callBox) {
   callBox.addEventListener('mousedown', (e) => {
-    if (e.target.closest('button') || isResizingCall) return;
+    if (e.target.closest('button') || e.target.closest('.call-resize-handle') || isResizingCall) return;
     isDraggingCall = true;
     const rect = callBox.getBoundingClientRect();
     dragOffsetX = e.clientX - rect.left;
@@ -146,6 +146,7 @@ document.addEventListener('mouseup', () => {
 if (callResizeHandle && callBox) {
   callResizeHandle.addEventListener('mousedown', (e) => {
     e.stopPropagation();
+    isDraggingCall = false;
     isResizingCall = true;
     const rect = callBox.getBoundingClientRect();
     resizeStartX = e.clientX;

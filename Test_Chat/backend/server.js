@@ -69,6 +69,9 @@ const dmRooms = new Map(); // Map<string, { messages: Array<Message> }>
 
 let nextMessageId = 1;
 
+// Group call: roomName -> Set<username>
+const roomCallParticipants = new Map();
+
 function getOnlineUsers() {
   return Array.from(usernameToSocket.keys());
 }
@@ -453,6 +456,79 @@ io.on("connection", (socket) => {
     });
   });
 
+  // ====== CALL NHÓM THEO ROOM (mesh) ======
+
+  // 1. Client tham gia call phòng
+  socket.on("room_call_join", ({ room }, cb) => {
+    const username = socket.data.username;
+    if (!username || !room) return cb && cb({ ok: false });
+
+    let set = roomCallParticipants.get(room);
+    if (!set) {
+      set = new Set();
+      roomCallParticipants.set(room, set);
+    }
+
+    const existing = Array.from(set);
+    set.add(username);
+
+    // Báo cho những người đã ở trong call biết là có người mới join
+    for (const other of existing) {
+      const otherSocketId = usernameToSocket.get(other);
+      if (otherSocketId) {
+        io.to(otherSocketId).emit("room_call_joined", {
+          room,
+          user: username,
+        });
+      }
+    }
+
+    cb && cb({ ok: true, participants: existing });
+  });
+
+  // 2. Truyền tín hiệu WebRTC trong call phòng
+  socket.on("room_call_signal", ({ room, to, type, data }) => {
+    const fromUser = socket.data.username;
+    if (!fromUser || !room || !to || !type || !data) return;
+
+    const targetSocketId = usernameToSocket.get(to);
+    if (!targetSocketId) return;
+
+    io.to(targetSocketId).emit("room_call_signal", {
+      room,
+      from: fromUser,
+      type,
+      data,
+    });
+  });
+
+  // 3. Rời call phòng
+  socket.on("room_call_leave", ({ room }) => {
+    const username = socket.data.username;
+    if (!username || !room) return;
+
+    const set = roomCallParticipants.get(room);
+    if (!set) return;
+
+    if (set.has(username)) {
+      set.delete(username);
+
+      for (const other of set) {
+        const otherSocketId = usernameToSocket.get(other);
+        if (otherSocketId) {
+          io.to(otherSocketId).emit("room_call_left", {
+            room,
+            user: username,
+          });
+        }
+      }
+
+      if (set.size === 0) {
+        roomCallParticipants.delete(room);
+      }
+    }
+  });
+
   // ====== NGẮT KẾT NỐI ======
   socket.on("disconnect", () => {
     const state = sockets.get(socket.id);
@@ -462,6 +538,28 @@ io.on("connection", (socket) => {
       usernameToSocket.delete(state.username);
       sockets.delete(socket.id);
       emitUsersOnline();
+
+      // Dọn user khỏi tất cả group call nếu có
+      const username = state.username;
+      for (const [room, set] of roomCallParticipants.entries()) {
+        if (set.has(username)) {
+          set.delete(username);
+
+          for (const other of set) {
+            const otherSocketId = usernameToSocket.get(other);
+            if (otherSocketId) {
+              io.to(otherSocketId).emit("room_call_left", {
+                room,
+                user: username,
+              });
+            }
+          }
+
+          if (set.size === 0) {
+            roomCallParticipants.delete(room);
+          }
+        }
+      }
 
       // Có thể bắn system nếu muốn
       // state.rooms.forEach(room => {

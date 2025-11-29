@@ -61,6 +61,12 @@ const usernameToSocket = new Map();
 const rooms = new Map();
 rooms.set(DEFAULT_ROOM, { messages: [] });
 
+// DM: key "userA::userB" (sort) -> { messages: [] }
+function dmKey(a, b) {
+  return [a, b].sort().join("::");
+}
+const dmRooms = new Map(); // Map<string, { messages: Array<Message> }>
+
 let nextMessageId = 1;
 
 function getOnlineUsers() {
@@ -114,6 +120,23 @@ app.get("/api/rooms/:room/messages", (req, res) => {
   if (!roomData) return res.json([]);
 
   const msgs = roomData.messages.slice(-limit);
+  res.json(msgs);
+});
+
+// Lịch sử tin nhắn riêng (DM)
+app.get("/api/dm/:a/:b", (req, res) => {
+  const { a, b } = req.params;
+  const limit = Math.min(parseInt(req.query.limit || "50", 10), 500);
+
+  const key = dmKey(a, b);
+  const dmRoom = dmRooms.get(key);
+  if (!dmRoom) {
+    console.log("[DM API] Không có phòng DM cho", key);
+    return res.json([]);
+  }
+
+  const msgs = dmRoom.messages.slice(-limit);
+  console.log("[DM API] trả về", msgs.length, "tin cho", key);
   res.json(msgs);
 });
 
@@ -295,12 +318,20 @@ io.on("connection", (socket) => {
         _id: String(nextMessageId++),
         room: null,
         sender: fromUser,
+        to: toUser,
         content,
         createdAt: Date.now(),
         isPrivate: true,
         system: false,
         readBy: [],
       };
+
+      // 💾 LƯU LỊCH SỬ DM TRONG RAM
+      const key = dmKey(fromUser, toUser);
+      if (!dmRooms.has(key)) dmRooms.set(key, { messages: [] });
+      const dmRoom = dmRooms.get(key);
+      dmRoom.messages.push(msg);
+      if (dmRoom.messages.length > 500) dmRoom.messages.shift();
 
       // Gửi cho người gửi
       io.to(socket.id).emit("private_message", msg);

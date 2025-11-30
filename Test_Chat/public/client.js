@@ -51,9 +51,26 @@ let groupPeers = {};          // username -> RTCPeerConnection
 let groupRemoteStreams = {};  // username -> MediaStream
 let groupParticipants = new Set(); // Tên các thành viên đang trong group call
 
+
 const ICE_SERVERS = [
-  { urls: 'stun:stun.l.google.com:19302' }
+  {
+    urls: [
+      'stun:stun.l.google.com:19302',
+      'stun:stun1.l.google.com:19302',
+      'stun:stun2.l.google.com:19302'
+    ]
+  },
+
+  // ==== RẤT QUAN TRỌNG ====
+  
+  {
+    urls: 'turn:YOUR_TURN_HOST:3478',
+    username: 'YOUR_TURN_USERNAME',
+    credential: 'YOUR_TURN_PASSWORD'
+  }
 ];
+
+
 // DOM helper
 const $ = (q) => document.querySelector(q);
 
@@ -862,12 +879,7 @@ function closeCallOverlay() {
 }
 
 function createPeerConnection() {
-  const ICE_SERVERS = [
-    { urls: 'stun:stun.l.google.com:19302' },
-    // Nếu sau này bạn có TURN thì thêm ở đây
-    // { urls: 'turn:YOUR_TURN_HOST:3478', username: 'USER', credential: 'PASS' }
-  ];
-
+  // Dùng chung ICE_SERVERS (STUN + TURN)
   pc = new RTCPeerConnection({ iceServers: ICE_SERVERS });
 
   pc.onicecandidate = (event) => {
@@ -883,21 +895,30 @@ function createPeerConnection() {
     const [stream] = event.streams;
     if (!stream) return;
 
-    if (currentCallIsVideo && remoteVideoEl) {
-      remoteVideoEl.srcObject = stream;
-      if (remoteVideoEl.play) remoteVideoEl.play().catch(() => {});
-    } else {
-      // voice
-      if (!remoteAudioEl) {
-        remoteAudioEl = document.createElement('audio');
-        remoteAudioEl.autoplay = true;
-        remoteAudioEl.style.display = 'none';
-        document.body.appendChild(remoteAudioEl);
+    try {
+      if (currentCallIsVideo && remoteVideoEl) {
+        // Cuộc gọi video → đẩy lên thẻ video
+        remoteVideoEl.srcObject = stream;
+        const p = remoteVideoEl.play && remoteVideoEl.play();
+        if (p && p.catch) p.catch(() => {});
+      } else {
+        // Cuộc gọi voice → phát qua <audio>
+        if (!remoteAudioEl) {
+          remoteAudioEl = document.createElement('audio');
+          remoteAudioEl.autoplay = true;
+          remoteAudioEl.style.display = 'none';
+          document.body.appendChild(remoteAudioEl);
+        }
+        remoteAudioEl.srcObject = stream;
+        const p = remoteAudioEl.play && remoteAudioEl.play();
+        if (p && p.catch) p.catch(() => {});
       }
-      remoteAudioEl.srcObject = stream;
-      if (remoteAudioEl.play) remoteAudioEl.play().catch(() => {});
+    } catch (e) {
+      console.warn('Lỗi phát remote stream 1-1:', e);
     }
   };
+
+  // (không dùng groupRemoteStreams / peerName ở đây nữa)
 }
 
 
@@ -987,9 +1008,7 @@ async function joinGroupCall(isVideo) {
 function createGroupPeerConnection(peerName) {
   if (groupPeers[peerName]) return groupPeers[peerName];
 
-  const pc = new RTCPeerConnection({
-    iceServers: ICE_SERVERS
-  });
+    const pc = new RTCPeerConnection({ iceServers: ICE_SERVERS });
 
   pc.onicecandidate = (event) => {
     if (event.candidate && groupCallActive && groupCallRoom) {

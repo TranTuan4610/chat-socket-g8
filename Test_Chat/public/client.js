@@ -936,6 +936,9 @@ function restoreCallOverlay() {
   callMinimized = false;
   callDocked = false;
   resumeMediaPlayback();
+  if (groupCallActive) {
+    renderGroupVideoTiles();
+  }
 }
 
 function dockCallOverlay() {
@@ -945,6 +948,7 @@ function dockCallOverlay() {
   callOverlay.classList.remove('minimized');
   callDocked = true;
   callMinimized = false;
+  updateDockedPrimaryVideo();
   resumeMediaPlayback();
 }
 
@@ -1004,6 +1008,13 @@ function renderGroupVideoTiles() {
     return;
   }
 
+  if (callDocked) {
+    groupVideoGrid.style.display = 'none';
+    groupVideoGrid.innerHTML = '';
+    updateDockedPrimaryVideo();
+    return;
+  }
+
   groupVideoGrid.style.display = 'grid';
   groupVideoGrid.innerHTML = '';
 
@@ -1016,7 +1027,36 @@ function renderGroupVideoTiles() {
   });
 
   if (callMediaWrapper) {
-    callMediaWrapper.style.display = 'none'; // ưu tiên grid khi call nhóm
+    if (callDocked) {
+      callMediaWrapper.style.display = 'block';
+    } else {
+      callMediaWrapper.style.display = 'none'; // ưu tiên grid khi call nhóm
+    }
+  }
+}
+
+function getPrimaryGroupStream() {
+  const entries = Object.entries(groupRemoteStreams || {});
+  if (entries.length > 0) {
+    return entries[0][1];
+  }
+  if (groupLocalStream) return groupLocalStream;
+  return null;
+}
+
+function updateDockedPrimaryVideo() {
+  if (!callDocked) return;
+  // khi dock: chỉ hiển thị 1 video chính
+  if (groupCallActive) {
+    const primary = getPrimaryGroupStream();
+    if (primary && remoteVideoEl) {
+      remoteVideoEl.srcObject = primary;
+    }
+    if (callMediaWrapper) callMediaWrapper.style.display = 'block';
+    if (groupVideoGrid) groupVideoGrid.style.display = 'none';
+  } else {
+    // call 1-1: giữ nguyên remote/local như cũ
+    if (callMediaWrapper) callMediaWrapper.style.display = currentCallIsVideo ? 'block' : 'none';
   }
 }
 

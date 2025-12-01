@@ -764,6 +764,10 @@ body.dark .call-box {
   text-overflow: ellipsis;
 }
 
+.call-overlay.docked .group-video-grid {
+  display: none !important;
+}
+
 .group-video-grid {
   display: none;
   width: 100%;

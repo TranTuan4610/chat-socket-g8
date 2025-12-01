@@ -43,6 +43,7 @@
   </div>
 
   <div class="app-container">
+    <div id="sidebarBackdrop" class="sidebar-backdrop"></div>
     <aside class="sidebar">
       <div class="sidebar-header">
         <i class='bx bxs-message-rounded-dots logo-icon'></i>
@@ -98,6 +99,9 @@
 
     <main class="chat-area">
       <header class="chat-header">
+        <button id="btnToggleSidebar" class="btn-icon-circle btn-sidebar-mobile" title="Danh sách">
+          <i class='bx bx-menu'></i>
+        </button>
         <div class="chat-info">
           <div class="chat-icon"><i class='bx bxs-chat'></i></div>
           <div>
@@ -175,6 +179,21 @@
         // Đăng xuất Firebase (nếu có login bằng Firebase)
         signOut(auth).catch(console.error);
       });
+    }
+
+    // Toggle sidebar cho mobile
+    const btnToggleSidebar = document.getElementById('btnToggleSidebar');
+    const sidebarBackdrop = document.getElementById('sidebarBackdrop');
+    const closeSidebar = () => document.body.classList.remove('sidebar-open');
+
+    if (btnToggleSidebar) {
+      btnToggleSidebar.addEventListener('click', () => {
+        document.body.classList.toggle('sidebar-open');
+      });
+    }
+
+    if (sidebarBackdrop) {
+      sidebarBackdrop.addEventListener('click', closeSidebar);
     }
   </script>
 

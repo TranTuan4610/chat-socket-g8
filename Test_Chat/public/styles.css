@@ -690,62 +690,6 @@ body.dark .call-box {
   animation: pulse-avatar 1.8s ease-in-out infinite;
 }
 
-.btn-call-minimize {
-  position: absolute;
-  top: 10px;
-  right: 10px;
-  width: 34px;
-  height: 34px;
-  font-size: 1rem;
-  background: rgba(255,255,255,0.12);
-  color: #fff;
-  border: 1px solid rgba(255,255,255,0.2);
-}
-
-.call-overlay.minimized {
-  background: transparent;
-  padding: 10px;
-  justify-content: flex-end;
-  align-items: flex-end;
-  pointer-events: none; /* để click xuyên, trừ call-box */
-}
-
-.call-overlay.minimized .call-box {
-  width: 220px;
-  height: 160px;
-  padding: 10px;
-  gap: 4px;
-  box-shadow: 0 12px 25px rgba(0,0,0,0.35);
-  cursor: pointer;
-  pointer-events: auto; /* bật click cho khung nhỏ */
-}
-
-.call-overlay.minimized .call-hero {
-  gap: 10px;
-}
-
-.call-overlay.minimized .call-meta {
-  display: none;
-}
-
-.call-overlay.minimized .call-actions-row {
-  display: none;
-}
-
-.call-overlay.minimized #callMediaWrapper {
-  min-height: 80px;
-}
-
-.call-overlay.minimized .call-avatar {
-  width: 50px;
-  height: 50px;
-  font-size: 1.3rem;
-}
-
-.call-overlay.minimized .call-participants {
-  display: none;
-}
-
 .call-overlay.docked {
   background: transparent;
   padding: 10px;

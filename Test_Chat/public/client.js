@@ -42,8 +42,8 @@ let currentCallStatus = 'idle';
 let incomingOffer = null;
 let callTimeoutId = null;
 let pendingRoomInvite = null;    // lưu lời mời call phòng đang chờ
-let callMinimized = false;       // trạng thái thu nhỏ call overlay
-let callDocked = false;          // trạng thái dock (floating corner)
+let callMinimized = false;       // trạng thái thu nhỏ call overlay (disabled)
+let callDocked = false;          // trạng thái dock (floating corner) (disabled)
 
 // Group Call (call cả phòng) - mesh
 let groupCallActive = false;
@@ -136,29 +136,14 @@ let startHeight = 0;
 
 if (callBox) {
   callBox.addEventListener('mousedown', (e) => {
-    if (!callDocked) return; // chỉ cho kéo khi đang dock
-    if (e.target.closest('button') || e.target.closest('.call-resize-handle') || isResizingCall) return;
-    isDraggingCall = true;
-    const rect = callBox.getBoundingClientRect();
-    dragOffsetX = e.clientX - rect.left;
-    dragOffsetY = e.clientY - rect.top;
-    callBox.style.transform = 'none';
+    // kéo/resize đã tắt khi dock feature bị vô hiệu
+    return;
   });
 }
 
 document.addEventListener('mousemove', (e) => {
-  if (!callDocked) return;
-  if (isResizingCall && callBox) {
-    const newWidth = Math.max(220, startWidth + (e.clientX - resizeStartX));
-    const newHeight = Math.max(200, startHeight + (e.clientY - resizeStartY));
-    callBox.style.width = `${newWidth}px`;
-    callBox.style.height = `${newHeight}px`;
-    return;
-  }
-
-  if (!isDraggingCall || !callBox) return;
-  callBox.style.left = `${e.clientX - dragOffsetX}px`;
-  callBox.style.top = `${e.clientY - dragOffsetY}px`;
+  // kéo/resize dock đã tắt
+  return;
 });
 
 document.addEventListener('mouseup', () => {
@@ -170,15 +155,7 @@ document.addEventListener('mouseup', () => {
 if (callResizeHandle && callBox) {
   callResizeHandle.addEventListener('mousedown', (e) => {
     e.stopPropagation();
-    if (!callDocked) return; // chỉ resize khi dock
-    isDraggingCall = false;
-    isResizingCall = true;
-    const rect = callBox.getBoundingClientRect();
-    resizeStartX = e.clientX;
-    resizeStartY = e.clientY;
-    startWidth = rect.width;
-    startHeight = rect.height;
-    callBox.style.transform = 'none';
+    // resize dock đã tắt
   });
 }
 
@@ -927,9 +904,7 @@ function resumeMediaPlayback() {
 
 function minimizeCallOverlay() {
   if (!callOverlay || callOverlay.style.display === 'none') return;
-  callOverlay.classList.add('minimized');
-  callMinimized = true;
-  callDocked = false;
+  // tính năng thu nhỏ đã tắt
 }
 
 function restoreCallOverlay() {
@@ -945,14 +920,7 @@ function restoreCallOverlay() {
 }
 
 function dockCallOverlay() {
-  if (!callOverlay) return;
-  callOverlay.style.display = 'flex';
-  callOverlay.classList.add('docked');
-  callOverlay.classList.remove('minimized');
-  callDocked = true;
-  callMinimized = false;
-  updateDockedPrimaryVideo();
-  resumeMediaPlayback();
+  // tính năng dock đã tắt
 }
 
 function hasLiveVideo(stream) {
@@ -1462,25 +1430,6 @@ if (btnRejectCall) {
         system: true
       });
       resetCallState(true);
-    }
-  });
-}
-
-if (btnMinimizeCall) {
-  btnMinimizeCall.addEventListener('click', (e) => {
-    e.stopPropagation();
-    if (callDocked || callMinimized) {
-      restoreCallOverlay();
-    } else {
-      dockCallOverlay();
-    }
-  });
-}
-
-if (callBox) {
-  callBox.addEventListener('click', () => {
-    if (callMinimized || callDocked) {
-      restoreCallOverlay();
     }
   });
 }

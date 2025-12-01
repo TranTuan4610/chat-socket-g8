@@ -110,6 +110,7 @@ const callOverlay = document.getElementById('callOverlay');
 const callAvatarEl = document.getElementById('callAvatar');
 const callNameEl = document.getElementById('callName');
 const callTypeEl = document.getElementById('callType');
+const callStatusTextEl = document.getElementById('callStatusText');
 const btnAcceptCall = document.getElementById('btnAcceptCall');
 const btnRejectCall = document.getElementById('btnRejectCall');
 const callMediaWrapper = document.getElementById('callMediaWrapper');
@@ -818,6 +819,11 @@ function openCallOverlay(displayName, isVideo, mode) {
   // mode: 'outgoing' | 'incoming' | 'in-call'
   if (!callOverlay) return;
   callOverlay.style.display = 'flex';
+  callOverlay.dataset.mode = mode || '';
+  callOverlay.classList.toggle('is-video', !!isVideo);
+  callOverlay.classList.toggle('is-incoming', mode === 'incoming');
+  callOverlay.classList.toggle('is-outgoing', mode === 'outgoing');
+  callOverlay.classList.toggle('is-in-call', mode === 'in-call');
 
   if (callAvatarEl) {
     callAvatarEl.textContent = (displayName || '?').charAt(0).toUpperCase();
@@ -838,6 +844,18 @@ function openCallOverlay(displayName, isVideo, mode) {
       callTypeEl.textContent = isVideo ? 'Đang trong video call' : 'Đang trong voice call';
     } else {
       callTypeEl.textContent = isVideo ? 'Đang gọi video...' : 'Đang gọi thoại...';
+    }
+  }
+
+  if (callStatusTextEl) {
+    if (mode === 'incoming') {
+      callStatusTextEl.textContent = 'Đang đổ chuông...';
+    } else if (mode === 'outgoing') {
+      callStatusTextEl.textContent = 'Đang kết nối...';
+    } else if (mode === 'in-call') {
+      callStatusTextEl.textContent = 'Đang trò chuyện';
+    } else {
+      callStatusTextEl.textContent = 'Đang kết nối...';
     }
   }
 
@@ -867,12 +885,13 @@ function openCallOverlay(displayName, isVideo, mode) {
 function closeCallOverlay() {
   if (!callOverlay) return;
   callOverlay.style.display = 'none';
+  callOverlay.classList.remove('is-video', 'is-incoming', 'is-outgoing', 'is-in-call');
   if (callMediaWrapper) callMediaWrapper.style.display = 'none';
   // Reset vị trí/kích thước popup về mặc định cho lần mở sau
   if (callBox) {
-    callBox.style.left = '50%';
-    callBox.style.top = '50%';
-    callBox.style.transform = 'translate(-50%, -50%)';
+    callBox.style.left = '';
+    callBox.style.top = '';
+    callBox.style.transform = '';
     callBox.style.width = '';
     callBox.style.height = '';
   }

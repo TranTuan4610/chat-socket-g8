@@ -120,6 +120,7 @@ const localVideoEl = document.getElementById('localVideo');
 const remoteVideoEl = document.getElementById('remoteVideo');
 const callParticipantsBox = document.getElementById('callParticipants');
 const callResizeHandle = document.querySelector('.call-resize-handle');
+const groupVideoGrid = document.getElementById('groupVideoGrid');
 
 // ==== DRAGGABLE CALL BOX ====
 const callBox = document.querySelector('.call-box');
@@ -894,6 +895,10 @@ function closeCallOverlay() {
   callOverlay.classList.remove('is-video', 'is-incoming', 'is-outgoing', 'is-in-call', 'minimized');
   callMinimized = false;
   if (callMediaWrapper) callMediaWrapper.style.display = 'none';
+  if (groupVideoGrid) {
+    groupVideoGrid.style.display = 'none';
+    groupVideoGrid.innerHTML = '';
+  }
   // Reset vị trí/kích thước popup về mặc định cho lần mở sau
   if (callBox) {
     callBox.style.left = '';
@@ -905,7 +910,8 @@ function closeCallOverlay() {
 }
 
 function resumeMediaPlayback() {
-  [remoteVideoEl, localVideoEl].forEach((el) => {
+  const extraVideos = groupVideoGrid ? Array.from(groupVideoGrid.querySelectorAll('video')) : [];
+  [remoteVideoEl, localVideoEl, ...extraVideos].forEach((el) => {
     if (el && el.paused) {
       const p = el.play && el.play();
       if (p && p.catch) p.catch(() => {});
@@ -925,6 +931,78 @@ function restoreCallOverlay() {
   callOverlay.classList.remove('minimized');
   callMinimized = false;
   resumeMediaPlayback();
+}
+
+function hasLiveVideo(stream) {
+  return !!(stream && stream.getVideoTracks && stream.getVideoTracks().some(t => t.readyState === 'live' && t.enabled));
+}
+
+function ensureVideoTile(peer, label, stream, isLocal = false) {
+  if (!groupVideoGrid) return null;
+  let tile = groupVideoGrid.querySelector(`[data-peer="${peer}"]`);
+  if (!tile) {
+    tile = document.createElement('div');
+    tile.className = 'video-tile';
+    tile.dataset.peer = peer;
+    const video = document.createElement('video');
+    video.autoplay = true;
+    video.playsInline = true;
+    if (isLocal) video.muted = true;
+    const labelEl = document.createElement('div');
+    labelEl.className = 'video-label';
+    labelEl.textContent = label || peer || 'User';
+    tile.appendChild(video);
+    tile.appendChild(labelEl);
+    groupVideoGrid.appendChild(tile);
+  }
+
+  const videoEl = tile.querySelector('video');
+  if (videoEl && videoEl.srcObject !== stream) {
+    videoEl.srcObject = stream;
+  }
+
+  const hasVideo = hasLiveVideo(stream);
+  tile.classList.toggle('audio-only', !hasVideo);
+
+  let badge = tile.querySelector('.audio-badge');
+  if (!hasVideo) {
+    if (!badge) {
+      badge = document.createElement('div');
+      badge.className = 'audio-badge';
+      badge.innerHTML = "<i class='bx bx-microphone'></i>";
+      tile.appendChild(badge);
+    }
+  } else if (badge) {
+    badge.remove();
+  }
+
+  const p = videoEl && videoEl.play && videoEl.play();
+  if (p && p.catch) p.catch(() => {});
+  return tile;
+}
+
+function renderGroupVideoTiles() {
+  if (!groupVideoGrid) return;
+  if (!groupCallActive) {
+    groupVideoGrid.style.display = 'none';
+    groupVideoGrid.innerHTML = '';
+    return;
+  }
+
+  groupVideoGrid.style.display = 'grid';
+  groupVideoGrid.innerHTML = '';
+
+  if (groupLocalStream) {
+    ensureVideoTile('me', username || 'Bạn', groupLocalStream, true);
+  }
+
+  Object.entries(groupRemoteStreams).forEach(([peer, stream]) => {
+    ensureVideoTile(peer, peer, stream, false);
+  });
+
+  if (callMediaWrapper) {
+    callMediaWrapper.style.display = 'none'; // ưu tiên grid khi call nhóm
+  }
 }
 
 function createPeerConnection() {
@@ -1027,12 +1105,14 @@ async function joinGroupCall(isVideo) {
     groupCallActive = true;
 
     openCallOverlay(`Phòng ${groupCallRoom}`, !!isVideo, 'in-call');
+    renderGroupVideoTiles();
 
     if (isVideo && localVideoEl) {
       localVideoEl.srcObject = groupLocalStream;
     } else if (localVideoEl) {
       localVideoEl.srcObject = null;
     }
+    renderGroupVideoTiles();
 
     socket.emit('room_call_join', { room: groupCallRoom }, (res) => {
       if (!res || !res.ok) {
@@ -1076,20 +1156,7 @@ function createGroupPeerConnection(peerName) {
     if (!stream) return;
 
     groupRemoteStreams[peerName] = stream;
-
-    if (remoteVideoEl) {
-      remoteVideoEl.srcObject = stream;
-      remoteVideoEl.play && remoteVideoEl.play().catch(() => {});
-    } else {
-      if (!remoteAudioEl) {
-        remoteAudioEl = document.createElement('audio');
-        remoteAudioEl.autoplay = true;
-        remoteAudioEl.style.display = 'none';
-        document.body.appendChild(remoteAudioEl);
-      }
-      remoteAudioEl.srcObject = stream;
-      remoteAudioEl.play && remoteAudioEl.play().catch(() => {});
-    }
+    renderGroupVideoTiles();
   };
 
   if (groupLocalStream) {
@@ -1126,6 +1193,7 @@ function leaveGroupCall() {
   });
   groupParticipants.clear();
   renderCallParticipants();
+  renderGroupVideoTiles();
 
   if (remoteVideoEl) remoteVideoEl.srcObject = null;
   if (localVideoEl) localVideoEl.srcObject = null;
@@ -1477,6 +1545,7 @@ socket.on('room_call_joined', async ({ room, user }) => {
 
   groupParticipants.add(user);
   renderCallParticipants();
+  renderGroupVideoTiles();
 
   try {
     const pc = createGroupPeerConnection(user);
@@ -1518,6 +1587,7 @@ socket.on('room_call_signal', async ({ room, from, type, data }) => {
     } else if (type === 'candidate') {
       await pc.addIceCandidate(new RTCIceCandidate(data));
     }
+    renderGroupVideoTiles();
   } catch (err) {
     console.error('Lỗi xử lý room_call_signal', type, 'từ', from, err);
   }
@@ -1535,4 +1605,5 @@ socket.on('room_call_left', ({ room, user }) => {
   delete groupRemoteStreams[user];
   groupParticipants.delete(user);
   renderCallParticipants();
+  renderGroupVideoTiles();
 });

@@ -731,6 +731,63 @@ body.dark .call-box {
   display: none;
 }
 
+.group-video-grid {
+  display: none;
+  width: 100%;
+  gap: 10px;
+  margin-top: 10px;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  background: rgba(0,0,0,0.35);
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 16px;
+  padding: 10px;
+}
+
+.video-tile {
+  position: relative;
+  overflow: hidden;
+  border-radius: 12px;
+  background: #0b0d14;
+  color: #fff;
+  min-height: 140px;
+}
+
+.video-tile video {
+  width: 100%;
+  height: 100%;
+  min-height: 140px;
+  object-fit: cover;
+  background: #000;
+}
+
+.video-tile .video-label {
+  position: absolute;
+  left: 8px;
+  bottom: 8px;
+  background: rgba(0,0,0,0.55);
+  padding: 4px 8px;
+  border-radius: 8px;
+  font-size: 0.8rem;
+}
+
+.video-tile.audio-only video {
+  opacity: 0.35;
+}
+
+.video-tile .audio-badge {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.4rem;
+  color: #fff;
+}
+
+.call-overlay.minimized .group-video-grid {
+  grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+}
+
 @keyframes pulse-avatar {
   0% { box-shadow: 0 0 0 0 rgba(102,126,234,0.5); }
   70% { box-shadow: 0 0 0 22px rgba(102,126,234,0); }

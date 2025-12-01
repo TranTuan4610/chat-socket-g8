@@ -42,6 +42,7 @@ let currentCallStatus = 'idle';
 let incomingOffer = null;
 let callTimeoutId = null;
 let pendingRoomInvite = null;    // lưu lời mời call phòng đang chờ
+let callMinimized = false;       // trạng thái thu nhỏ call overlay
 
 // Group Call (call cả phòng) - mesh
 let groupCallActive = false;
@@ -111,6 +112,7 @@ const callAvatarEl = document.getElementById('callAvatar');
 const callNameEl = document.getElementById('callName');
 const callTypeEl = document.getElementById('callType');
 const callStatusTextEl = document.getElementById('callStatusText');
+const btnMinimizeCall = document.getElementById('btnMinimizeCall');
 const btnAcceptCall = document.getElementById('btnAcceptCall');
 const btnRejectCall = document.getElementById('btnRejectCall');
 const callMediaWrapper = document.getElementById('callMediaWrapper');
@@ -819,6 +821,8 @@ function openCallOverlay(displayName, isVideo, mode) {
   // mode: 'outgoing' | 'incoming' | 'in-call'
   if (!callOverlay) return;
   callOverlay.style.display = 'flex';
+  callOverlay.classList.remove('minimized');
+  callMinimized = false;
   callOverlay.dataset.mode = mode || '';
   callOverlay.classList.toggle('is-video', !!isVideo);
   callOverlay.classList.toggle('is-incoming', mode === 'incoming');
@@ -880,12 +884,15 @@ function openCallOverlay(displayName, isVideo, mode) {
   if (isVideo && localVideoEl && localStream) {
     localVideoEl.srcObject = localStream;
   }
+
+  resumeMediaPlayback();
 }
 
 function closeCallOverlay() {
   if (!callOverlay) return;
   callOverlay.style.display = 'none';
-  callOverlay.classList.remove('is-video', 'is-incoming', 'is-outgoing', 'is-in-call');
+  callOverlay.classList.remove('is-video', 'is-incoming', 'is-outgoing', 'is-in-call', 'minimized');
+  callMinimized = false;
   if (callMediaWrapper) callMediaWrapper.style.display = 'none';
   // Reset vị trí/kích thước popup về mặc định cho lần mở sau
   if (callBox) {
@@ -895,6 +902,29 @@ function closeCallOverlay() {
     callBox.style.width = '';
     callBox.style.height = '';
   }
+}
+
+function resumeMediaPlayback() {
+  [remoteVideoEl, localVideoEl].forEach((el) => {
+    if (el && el.paused) {
+      const p = el.play && el.play();
+      if (p && p.catch) p.catch(() => {});
+    }
+  });
+}
+
+function minimizeCallOverlay() {
+  if (!callOverlay || callOverlay.style.display === 'none') return;
+  callOverlay.classList.add('minimized');
+  callMinimized = true;
+}
+
+function restoreCallOverlay() {
+  if (!callOverlay) return;
+  callOverlay.style.display = 'flex';
+  callOverlay.classList.remove('minimized');
+  callMinimized = false;
+  resumeMediaPlayback();
 }
 
 function createPeerConnection() {
@@ -964,6 +994,7 @@ function resetCallState(closeOverlay = true) {
   currentCallStatus = 'idle';
   groupParticipants.clear();
   renderCallParticipants();
+  callMinimized = false;
 
   if (closeOverlay) closeCallOverlay();
 }
@@ -1308,6 +1339,27 @@ if (btnRejectCall) {
     }
   });
 }
+
+if (btnMinimizeCall) {
+  btnMinimizeCall.addEventListener('click', (e) => {
+    e.stopPropagation();
+    minimizeCallOverlay();
+  });
+}
+
+if (callBox) {
+  callBox.addEventListener('click', () => {
+    if (callMinimized) {
+      restoreCallOverlay();
+    }
+  });
+}
+
+document.addEventListener('visibilitychange', () => {
+  if (!document.hidden) {
+    resumeMediaPlayback();
+  }
+});
 
 window.addEventListener('beforeunload', () => {
   if (groupCallActive) {

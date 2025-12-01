@@ -43,6 +43,7 @@ let incomingOffer = null;
 let callTimeoutId = null;
 let pendingRoomInvite = null;    // lưu lời mời call phòng đang chờ
 let callMinimized = false;       // trạng thái thu nhỏ call overlay
+let callDocked = false;          // trạng thái dock (floating corner)
 
 // Group Call (call cả phòng) - mesh
 let groupCallActive = false;
@@ -824,6 +825,7 @@ function openCallOverlay(displayName, isVideo, mode) {
   callOverlay.style.display = 'flex';
   callOverlay.classList.remove('minimized');
   callMinimized = false;
+  callDocked = false;
   callOverlay.dataset.mode = mode || '';
   callOverlay.classList.toggle('is-video', !!isVideo);
   callOverlay.classList.toggle('is-incoming', mode === 'incoming');
@@ -892,8 +894,9 @@ function openCallOverlay(displayName, isVideo, mode) {
 function closeCallOverlay() {
   if (!callOverlay) return;
   callOverlay.style.display = 'none';
-  callOverlay.classList.remove('is-video', 'is-incoming', 'is-outgoing', 'is-in-call', 'minimized');
+  callOverlay.classList.remove('is-video', 'is-incoming', 'is-outgoing', 'is-in-call', 'minimized', 'docked');
   callMinimized = false;
+  callDocked = false;
   if (callMediaWrapper) callMediaWrapper.style.display = 'none';
   if (groupVideoGrid) {
     groupVideoGrid.style.display = 'none';
@@ -923,12 +926,24 @@ function minimizeCallOverlay() {
   if (!callOverlay || callOverlay.style.display === 'none') return;
   callOverlay.classList.add('minimized');
   callMinimized = true;
+  callDocked = false;
 }
 
 function restoreCallOverlay() {
   if (!callOverlay) return;
   callOverlay.style.display = 'flex';
+  callOverlay.classList.remove('minimized', 'docked');
+  callMinimized = false;
+  callDocked = false;
+  resumeMediaPlayback();
+}
+
+function dockCallOverlay() {
+  if (!callOverlay) return;
+  callOverlay.style.display = 'flex';
+  callOverlay.classList.add('docked');
   callOverlay.classList.remove('minimized');
+  callDocked = true;
   callMinimized = false;
   resumeMediaPlayback();
 }
@@ -1106,6 +1121,7 @@ async function joinGroupCall(isVideo) {
 
     openCallOverlay(`Phòng ${groupCallRoom}`, !!isVideo, 'in-call');
     renderGroupVideoTiles();
+    dockCallOverlay();
 
     if (isVideo && localVideoEl) {
       localVideoEl.srcObject = groupLocalStream;
@@ -1318,6 +1334,7 @@ async function acceptIncomingCall() {
     currentCallStatus = 'in-call';
     openCallOverlay(currentCallPeer, currentCallIsVideo, 'in-call');
     renderCallParticipants();
+    dockCallOverlay();
 
     socket.emit('answer_call', {
       to: currentCallPeer,
@@ -1411,13 +1428,17 @@ if (btnRejectCall) {
 if (btnMinimizeCall) {
   btnMinimizeCall.addEventListener('click', (e) => {
     e.stopPropagation();
-    minimizeCallOverlay();
+    if (callDocked || callMinimized) {
+      restoreCallOverlay();
+    } else {
+      dockCallOverlay();
+    }
   });
 }
 
 if (callBox) {
   callBox.addEventListener('click', () => {
-    if (callMinimized) {
+    if (callMinimized || callDocked) {
       restoreCallOverlay();
     }
   });
@@ -1474,6 +1495,7 @@ socket.on('call_answered', async ({ from, answer }) => {
     openCallOverlay(currentCallPeer, currentCallIsVideo, 'in-call');
     renderCallParticipants();
     clearCallTimeout();
+    dockCallOverlay();
   } catch (err) {
     console.error('Lỗi setRemoteDescription answer:', err);
   }

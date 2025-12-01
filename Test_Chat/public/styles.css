@@ -731,6 +731,37 @@ body.dark .call-box {
   display: none;
 }
 
+.call-overlay.docked {
+  background: transparent;
+  padding: 10px;
+  justify-content: flex-end;
+  align-items: flex-end;
+  pointer-events: none;
+}
+
+.call-overlay.docked .call-box {
+  width: 260px;
+  padding: 12px;
+  gap: 6px;
+  box-shadow: 0 14px 30px rgba(0,0,0,0.35);
+  cursor: pointer;
+  pointer-events: auto;
+}
+
+.call-overlay.docked .call-hero {
+  gap: 10px;
+}
+
+.call-overlay.docked .call-actions-row {
+  margin-top: 4px;
+}
+
+.call-overlay.docked .call-meta {
+  max-width: 150px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .group-video-grid {
   display: none;
   width: 100%;

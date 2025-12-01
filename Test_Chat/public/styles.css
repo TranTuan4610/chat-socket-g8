@@ -734,12 +734,13 @@ body.dark .call-box {
 .call-overlay.docked {
   background: transparent;
   padding: 10px;
-  justify-content: flex-end;
-  align-items: flex-end;
   pointer-events: none;
 }
 
 .call-overlay.docked .call-box {
+  position: fixed;
+  bottom: 14px;
+  right: 14px;
   width: 260px;
   padding: 12px;
   gap: 6px;

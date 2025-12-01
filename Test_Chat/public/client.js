@@ -1267,6 +1267,7 @@ async function startDirectCall(isVideo) {
     }
 
     openCallOverlay(currentCallPeer, currentCallIsVideo, 'outgoing');
+    dockCallOverlay(); // cho phép thao tác chat ngay khi đang đổ chuông
     renderCallParticipants();
 
     const offer = await pc.createOffer();

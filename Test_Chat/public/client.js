@@ -136,6 +136,7 @@ let startHeight = 0;
 
 if (callBox) {
   callBox.addEventListener('mousedown', (e) => {
+    if (!callDocked) return; // chỉ cho kéo khi đang dock
     if (e.target.closest('button') || e.target.closest('.call-resize-handle') || isResizingCall) return;
     isDraggingCall = true;
     const rect = callBox.getBoundingClientRect();
@@ -146,6 +147,7 @@ if (callBox) {
 }
 
 document.addEventListener('mousemove', (e) => {
+  if (!callDocked) return;
   if (isResizingCall && callBox) {
     const newWidth = Math.max(220, startWidth + (e.clientX - resizeStartX));
     const newHeight = Math.max(200, startHeight + (e.clientY - resizeStartY));
@@ -168,6 +170,7 @@ document.addEventListener('mouseup', () => {
 if (callResizeHandle && callBox) {
   callResizeHandle.addEventListener('mousedown', (e) => {
     e.stopPropagation();
+    if (!callDocked) return; // chỉ resize khi dock
     isDraggingCall = false;
     isResizingCall = true;
     const rect = callBox.getBoundingClientRect();

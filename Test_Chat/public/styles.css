@@ -525,8 +525,8 @@ body.dark .btn-icon-circle:hover {
 }
 
 .call-box {
-  width: min(540px, 92vw);
-  max-height: min(720px, 92vh);
+  width: min(1100px, 96vw);
+  max-height: min(760px, 92vh);
   background: rgba(255,255,255,0.08);
   border: 1px solid rgba(255,255,255,0.12);
   border-radius: 20px;
@@ -538,6 +538,8 @@ body.dark .btn-icon-circle:hover {
   flex-direction: column;
   gap: 10px;
   color: #f5f5f5;
+  margin: 0 auto;
+  cursor: default;
 }
 
 body.dark .call-box {

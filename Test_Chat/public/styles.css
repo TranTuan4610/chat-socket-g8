@@ -734,6 +734,7 @@ body.dark .call-box {
 .call-overlay.docked {
   background: transparent;
   padding: 10px;
+  backdrop-filter: none;
   pointer-events: none;
 }
 

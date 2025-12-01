@@ -1121,7 +1121,6 @@ async function joinGroupCall(isVideo) {
 
     openCallOverlay(`Phòng ${groupCallRoom}`, !!isVideo, 'in-call');
     renderGroupVideoTiles();
-    dockCallOverlay();
 
     if (isVideo && localVideoEl) {
       localVideoEl.srcObject = groupLocalStream;
@@ -1267,7 +1266,6 @@ async function startDirectCall(isVideo) {
     }
 
     openCallOverlay(currentCallPeer, currentCallIsVideo, 'outgoing');
-    dockCallOverlay(); // cho phép thao tác chat ngay khi đang đổ chuông
     renderCallParticipants();
 
     const offer = await pc.createOffer();
@@ -1335,7 +1333,6 @@ async function acceptIncomingCall() {
     currentCallStatus = 'in-call';
     openCallOverlay(currentCallPeer, currentCallIsVideo, 'in-call');
     renderCallParticipants();
-    dockCallOverlay();
 
     socket.emit('answer_call', {
       to: currentCallPeer,
@@ -1496,7 +1493,6 @@ socket.on('call_answered', async ({ from, answer }) => {
     openCallOverlay(currentCallPeer, currentCallIsVideo, 'in-call');
     renderCallParticipants();
     clearCallTimeout();
-    dockCallOverlay();
   } catch (err) {
     console.error('Lỗi setRemoteDescription answer:', err);
   }
